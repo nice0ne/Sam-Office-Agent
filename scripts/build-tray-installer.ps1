@@ -130,10 +130,8 @@ if (!(Test-Path $localhostPfxPath)) {
         $securePass = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
         Export-PfxCertificate -Cert $cert -FilePath $localhostPfxPath -Password $securePass | Out-Null
 
-        if (!(Test-Path $caCrtPath)) {
-            Export-Certificate -Cert $cert -FilePath $caCrtPath | Out-Null
-            Write-Host "  -> Exported self-signed public CA certificate to certs/ca.crt." -ForegroundColor Green
-        }
+        Export-Certificate -Cert $cert -FilePath $caCrtPath -Force | Out-Null
+        Write-Host "  -> Exported self-signed public CA certificate to certs/ca.crt." -ForegroundColor Green
 
         Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
         $pfxCreated = (Test-Path $localhostPfxPath)

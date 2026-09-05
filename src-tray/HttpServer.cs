@@ -237,36 +237,40 @@ namespace SamOfficeAgent
         {
             // Read HTTP request headers (up to 32KB)
             byte[] buffer = new byte[4096];
-            MemoryStream ms = new MemoryStream();
-            int totalRead = 0;
             int headerEndIndex = -1;
+            string headerText;
 
-            while (totalRead < 32768)
+            using (MemoryStream ms = new MemoryStream())
             {
-                int read = stream.Read(buffer, 0, buffer.Length);
-                if (read <= 0)
+                int totalRead = 0;
+                while (totalRead < 32768)
                 {
-                    break;
+                    int read = stream.Read(buffer, 0, buffer.Length);
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    ms.Write(buffer, 0, read);
+                    totalRead += read;
+
+                    byte[] current = ms.ToArray();
+                    headerEndIndex = IndexOfDoubleNewline(current);
+                    if (headerEndIndex >= 0)
+                    {
+                        break;
+                    }
                 }
 
-                ms.Write(buffer, 0, read);
-                totalRead += read;
-
-                byte[] current = ms.ToArray();
-                headerEndIndex = IndexOfDoubleNewline(current);
-                if (headerEndIndex >= 0)
+                if (headerEndIndex < 0)
                 {
-                    break;
+                    return;
                 }
+
+                byte[] allBytes = ms.ToArray();
+                headerText = Encoding.ASCII.GetString(allBytes, 0, headerEndIndex);
             }
 
-            if (headerEndIndex < 0)
-            {
-                return;
-            }
-
-            byte[] allBytes = ms.ToArray();
-            string headerText = Encoding.ASCII.GetString(allBytes, 0, headerEndIndex);
             string[] headerLines = headerText.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
 
             if (headerLines.Length == 0 || string.IsNullOrEmpty(headerLines[0]))

@@ -293,7 +293,7 @@ namespace SamOfficeAgent
 
         /// <summary>
         /// Ensures developer CA certificate is installed in CurrentUser\Root certificate store.
-        /// Checks if certificate matching thumbprint or subject is already present before installing.
+        /// Checks if certificate matching thumbprint is already present before installing.
         /// </summary>
         /// <param name="caCertPath">Path to CA certificate file (.crt or .cer).</param>
         /// <returns>True if certificate is present or was successfully installed.</returns>
@@ -374,7 +374,7 @@ namespace SamOfficeAgent
         }
 
         /// <summary>
-        /// Checks if a certificate matching the thumbprint or subject of caCertPath is in CurrentUser\Root.
+        /// Checks if a certificate matching the thumbprint of caCertPath is in CurrentUser\Root.
         /// </summary>
         public static bool IsCertificateInstalled(string caCertPath)
         {
@@ -382,7 +382,7 @@ namespace SamOfficeAgent
         }
 
         /// <summary>
-        /// Checks if a certificate matching the thumbprint or subject of caCertPath is in the specified store.
+        /// Checks if a certificate matching the thumbprint of caCertPath is in the specified store.
         /// </summary>
         public static bool IsCertificateInstalled(string caCertPath, StoreName storeName, StoreLocation storeLocation)
         {
@@ -409,7 +409,7 @@ namespace SamOfficeAgent
         }
 
         /// <summary>
-        /// Checks if certificate is installed in CurrentUser\Root by thumbprint or subject distinguished name.
+        /// Checks if certificate is installed in CurrentUser\Root by thumbprint.
         /// </summary>
         public static bool IsCertificateInstalled(X509Certificate2 cert)
         {
@@ -417,7 +417,7 @@ namespace SamOfficeAgent
         }
 
         /// <summary>
-        /// Checks if certificate is installed in the specified store by thumbprint or subject distinguished name.
+        /// Checks if certificate is installed in the specified store by thumbprint.
         /// </summary>
         public static bool IsCertificateInstalled(X509Certificate2 cert, StoreName storeName, StoreLocation storeLocation)
         {
@@ -435,12 +435,6 @@ namespace SamOfficeAgent
                 foreach (X509Certificate2 c in store.Certificates)
                 {
                     if (string.Equals(c.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-
-                    if (!string.IsNullOrEmpty(cert.Subject) &&
-                        string.Equals(c.Subject, cert.Subject, StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
