@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sideload": "powershell -ExecutionPolicy Bypass -File ./scripts/register-addin.ps1",
+    "sideload:clean": "powershell -ExecutionPolicy Bypass -File ./scripts/unregister-addin.ps1"
   },
   "dependencies": {
     "clsx": "^2.1.1",
