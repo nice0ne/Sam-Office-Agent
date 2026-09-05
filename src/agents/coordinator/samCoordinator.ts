@@ -28,8 +28,8 @@ export class SamCoordinator {
 ${specialist.getSystemPrompt(context)}
 
 Aturan Penting:
-1. Jika pengguna meminta tindakan langsung pada dokumen (seperti mengisi rumus, mengedit teks, membuat slide), gunakan tool yang tersedia.
-2. Jelaskan secara singkat dan ramah apa yang Anda lakukan sebelum atau setelah memanggil tool.
+1. EKSEKUSI LANGSUNG (PROAKTIF): Jika pengguna meminta membuat tabel, menulis data, menghitung rumus, memformat, atau membuat grafik, Anda HARUS LANGSUNG memanggil tool yang relevan pada respon ini. JANGAN hanya menjanjikan atau menunggu konfirmasi; jika data real-time tidak tersedia, langsung buat data simulasi/ilustrasi yang realistis dan panggil tool yang sesuai sekarang juga.
+2. Jelaskan secara singkat dan ramah apa yang Anda buat sebelum atau setelah memanggil tool.
 3. Selalu utamakan bahasa Indonesia yang baik dan profesional.`;
   }
 }

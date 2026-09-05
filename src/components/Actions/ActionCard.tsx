@@ -36,6 +36,9 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
             {args.formula && (
               <div><span className="text-green-500">Formula:</span> {args.formula}</div>
             )}
+            {args.values && (
+              <div><span className="text-purple-500">Data:</span> {Array.isArray(args.values) ? `${args.values.length} baris data` : 'Tabel data'}</div>
+            )}
           </div>
         )}
         {toolCall.name === 'format_range' && (
