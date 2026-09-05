@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ProviderConfig, ProviderId } from '../../types';
-import { getSettings, saveProviderConfig, setActiveProvider } from '../../services/storage/settingsStorage';
+import { getSettings, saveSettings, setActiveProvider } from '../../services/storage/settingsStorage';
 import { testProviderConnection } from '../../services/llm/factory';
 import { X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -61,6 +61,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     });
   };
 
+  const handleUpdateBaseUrl = (baseUrl: string) => {
+    setSettings(prev => {
+      const existing = prev.providers[activeTab] || currentConfig;
+      return {
+        ...prev,
+        providers: {
+          ...prev.providers,
+          [activeTab]: { ...existing, baseUrl },
+        },
+      };
+    });
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -79,8 +92,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   };
 
   const handleSaveAndApply = () => {
-    const configToSave = settings.providers[activeTab] || currentConfig;
-    saveProviderConfig(configToSave);
+    const updatedSettings = {
+      ...settings,
+      activeProviderId: activeTab,
+    };
+    saveSettings(updatedSettings);
     setActiveProvider(activeTab);
     onSaved();
     onClose();
@@ -137,6 +153,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               type="text"
               value={currentConfig.selectedModel}
               onChange={e => handleUpdateModel(e.target.value)}
+              className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Custom Base URL / Proxy (Opsional)
+            </label>
+            <input
+              type="text"
+              value={currentConfig.baseUrl || ''}
+              onChange={e => handleUpdateBaseUrl(e.target.value)}
+              placeholder="https://..."
               className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

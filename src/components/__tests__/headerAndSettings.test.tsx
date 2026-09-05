@@ -230,6 +230,7 @@ describe('SettingsModal Component', () => {
     expect(html).toContain('Local');
     expect(html).toContain('Masukkan API Key Anda...');
     expect(html).toContain('Nama Model');
+    expect(html).toContain('Custom Base URL / Proxy');
     expect(html).toContain('Test Koneksi');
     expect(html).toContain('Simpan &amp; Gunakan');
   });
@@ -240,6 +241,7 @@ describe('SettingsModal Component', () => {
       name: 'OpenAI',
       apiKey: 'sk-existing-test-key',
       selectedModel: 'gpt-4o-mini',
+      baseUrl: 'https://custom.openai.proxy/v1',
       enabled: true,
     });
     setActiveProvider('openai');
@@ -251,6 +253,7 @@ describe('SettingsModal Component', () => {
     expect(cleaned).toContain('API Key (OpenAI)');
     expect(cleaned).toContain('sk-existing-test-key');
     expect(cleaned).toContain('gpt-4o-mini');
+    expect(cleaned).toContain('https://custom.openai.proxy/v1');
   });
 
   it('allows switching provider tabs', () => {
@@ -281,7 +284,7 @@ describe('SettingsModal Component', () => {
     expect(stripComments(renderToString(updatedKeyLabel))).toContain('API Key (OpenAI)');
   });
 
-  it('handles API key and model input changes', () => {
+  it('handles API key, model, and base URL input changes', () => {
     const harness = createHookHarness(SettingsModal, {
       isOpen: true,
       onClose: () => {},
@@ -292,19 +295,24 @@ describe('SettingsModal Component', () => {
     let body = vdom.props.children.props.children[2];
     const keyInput = body.props.children[0].props.children[1];
     const modelInput = body.props.children[1].props.children[1];
+    const baseUrlInput = body.props.children[2].props.children[1];
 
     // Change API key
     keyInput.props.onChange({ target: { value: 'sk-new-gemini-key' } });
     // Change Model
     modelInput.props.onChange({ target: { value: 'gemini-1.5-flash' } });
+    // Change Base URL
+    baseUrlInput.props.onChange({ target: { value: 'https://custom.gemini.proxy/v1' } });
 
     vdom = harness.render();
     body = vdom.props.children.props.children[2];
     const updatedKeyInput = body.props.children[0].props.children[1];
     const updatedModelInput = body.props.children[1].props.children[1];
+    const updatedBaseUrlInput = body.props.children[2].props.children[1];
 
     expect(updatedKeyInput.props.value).toBe('sk-new-gemini-key');
     expect(updatedModelInput.props.value).toBe('gemini-1.5-flash');
+    expect(updatedBaseUrlInput.props.value).toBe('https://custom.gemini.proxy/v1');
   });
 
   it('tests connection and displays success feedback', async () => {
@@ -329,7 +337,7 @@ describe('SettingsModal Component', () => {
 
     vdom = harness.render();
     const body = vdom.props.children.props.children[2];
-    const feedback = body.props.children[2];
+    const feedback = body.props.children[3];
     expect(feedback).toBeTruthy();
     expect(renderToString(feedback)).toContain('Koneksi Google Gemini berhasil');
 
@@ -356,14 +364,14 @@ describe('SettingsModal Component', () => {
 
     vdom = harness.render();
     const body = vdom.props.children.props.children[2];
-    const feedback = body.props.children[2];
+    const feedback = body.props.children[3];
     expect(feedback).toBeTruthy();
     expect(renderToString(feedback)).toContain('API Key Gemini belum diisi.');
 
     testSpy.mockRestore();
   });
 
-  it('saves config and closes modal on "Simpan & Gunakan"', () => {
+  it('saves all edited provider configurations across tabs on "Simpan & Gunakan"', () => {
     const onClose = vi.fn();
     const onSaved = vi.fn();
 
@@ -373,11 +381,30 @@ describe('SettingsModal Component', () => {
       onSaved,
     });
 
+    // 1. Edit Gemini (activeTab = gemini)
     let vdom = harness.render();
     let body = vdom.props.children.props.children[2];
-    const keyInput = body.props.children[0].props.children[1];
-    keyInput.props.onChange({ target: { value: 'saved-key-123' } });
+    const geminiKeyInput = body.props.children[0].props.children[1];
+    geminiKeyInput.props.onChange({ target: { value: 'gemini-multi-tab-key' } });
 
+    // 2. Switch tab to OpenAI
+    const tabsContainer = vdom.props.children.props.children[1];
+    const tabButtons = tabsContainer.props.children;
+    const openAiTab = tabButtons[1];
+    openAiTab.props.onClick();
+
+    // 3. Edit OpenAI config
+    vdom = harness.render();
+    body = vdom.props.children.props.children[2];
+    const openAiKeyInput = body.props.children[0].props.children[1];
+    const openAiModelInput = body.props.children[1].props.children[1];
+    const openAiBaseUrlInput = body.props.children[2].props.children[1];
+
+    openAiKeyInput.props.onChange({ target: { value: 'openai-multi-tab-key' } });
+    openAiModelInput.props.onChange({ target: { value: 'gpt-4o-latest' } });
+    openAiBaseUrlInput.props.onChange({ target: { value: 'https://proxy.openai.corp/v1' } });
+
+    // 4. Click "Simpan & Gunakan"
     vdom = harness.render();
     const footer = vdom.props.children.props.children[3];
     const saveBtn = footer.props.children[1];
@@ -386,9 +413,13 @@ describe('SettingsModal Component', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
 
+    // 5. Verify ALL tab changes were persisted via saveSettings
     const savedSettings = getSettings();
-    expect(savedSettings.providers.gemini.apiKey).toBe('saved-key-123');
-    expect(savedSettings.activeProviderId).toBe('gemini');
+    expect(savedSettings.activeProviderId).toBe('openai');
+    expect(savedSettings.providers.gemini.apiKey).toBe('gemini-multi-tab-key');
+    expect(savedSettings.providers.openai.apiKey).toBe('openai-multi-tab-key');
+    expect(savedSettings.providers.openai.selectedModel).toBe('gpt-4o-latest');
+    expect(savedSettings.providers.openai.baseUrl).toBe('https://proxy.openai.corp/v1');
   });
 
   it('calls onClose when close button (X) is clicked', () => {
