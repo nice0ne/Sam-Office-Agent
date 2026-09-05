@@ -5,6 +5,8 @@
 - **Status**: Approved
 - **Repository**: `D:/VIBE-CODING/Sam-Office-Agent`
 
+[English](2026-09-05-sam-office-agent-design.en.md) | Bahasa Indonesia
+
 ---
 
 ## 1. Executive Summary & Objective

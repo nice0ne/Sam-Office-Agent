@@ -1,5 +1,7 @@
 # Standalone Windows Tray Server & Installer Implementation Plan
 
+English | [Bahasa Indonesia](2026-09-05-tray-installer.id.md)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Package Sam Office Agent into an autonomous Windows System Tray application (`SamTrayServer.exe`) in C# (compiled via native Windows `csc.exe`) with a user-mode HTTPS server, certificate trust provisioning, Office manifest sideloading, Inno Setup script (`setup.iss`), and build automation (`build-tray-installer.ps1`).

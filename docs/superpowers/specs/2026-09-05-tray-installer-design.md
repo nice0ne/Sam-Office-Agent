@@ -4,6 +4,8 @@
 - **Status:** Proposed
 - **Target OS:** Windows 10 / Windows 11
 - **Component:** Desktop Packaging, Local Tray HTTPS Server & Inno Setup Installer
+ 
+English | [Bahasa Indonesia](2026-09-05-tray-installer-design.id.md)
 
 ---
 
