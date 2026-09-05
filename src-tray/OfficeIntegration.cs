@@ -175,10 +175,9 @@ namespace SamOfficeAgent
                             exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
                         }
 
-                        string fullPath = Path.GetFullPath(exePath);
-                        string formatted = fullPath.StartsWith("\"") && fullPath.EndsWith("\"")
-                            ? fullPath
-                            : string.Format("\"{0}\"", fullPath);
+                        string cleanPath = (exePath ?? "").Trim('\"');
+                        string fullPath = Path.GetFullPath(cleanPath);
+                        string formatted = string.Format("\"{0}\"", fullPath);
 
                         key.SetValue(AutoStartAppName, formatted, RegistryValueKind.String);
                     }
@@ -224,7 +223,8 @@ namespace SamOfficeAgent
                     }
 
                     string registered = val.ToString().Trim('\"');
-                    string target = Path.GetFullPath(exePath).Trim('\"');
+                    string cleanPath = (exePath ?? "").Trim('\"');
+                    string target = Path.GetFullPath(cleanPath);
                     return string.Equals(registered, target, StringComparison.OrdinalIgnoreCase);
                 }
             }

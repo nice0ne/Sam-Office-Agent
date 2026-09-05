@@ -12,8 +12,9 @@ if (!(Test-Path $binDir)) {
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $outExe = Join-Path $binDir "TestIntegration.exe"
 
+$csFiles = Get-ChildItem -Path $srcTray -Filter "*.cs" | Select-Object -ExpandProperty FullName
 Write-Host "Compiling TestIntegration.exe..."
-& $csc /nologo /target:exe /out:$outExe "$srcTray\OfficeIntegration.cs" "$srcTray\TestIntegrationProgram.cs"
+& $csc /nologo /target:exe /out:$outExe /r:System.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll $csFiles
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Compilation of OfficeIntegration failed."
     exit 1
@@ -22,7 +23,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "OfficeIntegration compiled successfully."
 
 Write-Host "Executing TestIntegration test suite..."
-& $outExe
+& $outExe --run-integration-tests
 if ($LASTEXITCODE -ne 0) {
     Write-Error "TestIntegration execution failed with exit code $LASTEXITCODE."
     exit 1

@@ -13,8 +13,9 @@ if (!(Test-Path $binDir)) {
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $outExe = Join-Path $binDir "TestServer.exe"
 
+$csFiles = Get-ChildItem -Path $srcTray -Filter "*.cs" | Select-Object -ExpandProperty FullName
 Write-Host "Compiling TestServer.exe..."
-& $csc /nologo /target:exe /out:$outExe "$srcTray\HttpServer.cs" "$srcTray\TestProgram.cs"
+& $csc /nologo /target:exe /out:$outExe /r:System.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Core.dll $csFiles
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Kompilasi C# gagal."

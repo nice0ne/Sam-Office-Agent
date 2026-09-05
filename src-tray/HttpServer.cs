@@ -437,6 +437,10 @@ namespace SamOfficeAgent
             sb.Append("Access-Control-Allow-Origin: *\r\n");
             sb.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS, HEAD\r\n");
             sb.Append("Access-Control-Allow-Headers: *\r\n");
+            if (contentType != null && contentType.IndexOf("text/html", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                sb.Append("Cache-Control: no-cache\r\n");
+            }
             sb.Append(string.Format("Date: {0}\r\n", DateTime.UtcNow.ToString("R")));
             sb.Append("\r\n");
 

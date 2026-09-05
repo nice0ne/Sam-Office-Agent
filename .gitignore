@@ -32,6 +32,10 @@ node_modules/
 # Build outputs
 dist/
 dist-ssr/
+bin/
+release/
+dist-release/
+certs/
 *.local
 
 # Editor directories and files
