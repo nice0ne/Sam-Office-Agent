@@ -17,7 +17,7 @@ export function compressTableContext(data: any[][], maxSampleRows = 5): TableSum
     };
   }
 
-  const headers = data[0].map(h => String(h || ''));
+  const headers = data[0].map(h => String(h ?? ''));
   const rows = data.slice(1);
   const totalRows = rows.length;
   const totalColumns = headers.length;

@@ -18,7 +18,9 @@ export function validateExcelFormula(formula: string): FormulaValidationResult {
 
   for (let i = 0; i < trimmed.length; i++) {
     const char = trimmed[i];
-    if (char === '"' && (i === 0 || trimmed[i - 1] !== '\\')) {
+    if (inQuotes && char === '"' && trimmed[i + 1] === '"') {
+      i++;
+    } else if (char === '"' && (i === 0 || trimmed[i - 1] !== '\\')) {
       inQuotes = !inQuotes;
     } else if (!inQuotes) {
       if (char === '(') openParenCount++;

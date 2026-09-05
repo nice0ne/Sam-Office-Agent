@@ -94,6 +94,34 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(result.result).toContain('Berhasil menulis ke sel A1:B2');
     });
 
+    it('rejects write_cells when neither formula nor values is provided', async () => {
+      const result = await agent.executeTool(
+        {
+          id: 'call-guard-1',
+          name: 'write_cells',
+          arguments: { range: 'A1:B2' },
+          status: 'pending',
+        },
+        context
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Harus menyertakan setidaknya formula atau values untuk range.');
+    });
+
+    it('rejects write_cells when values array is empty', async () => {
+      const result = await agent.executeTool(
+        {
+          id: 'call-guard-2',
+          name: 'write_cells',
+          arguments: { range: 'A1:B2', values: [] },
+          status: 'pending',
+        },
+        context
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Harus menyertakan setidaknya formula atau values untuk range.');
+    });
+
     it('formats range', async () => {
       const result = await agent.executeTool(
         {

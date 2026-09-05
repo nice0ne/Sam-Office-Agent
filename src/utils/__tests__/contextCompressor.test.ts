@@ -44,4 +44,13 @@ describe('compressTableContext', () => {
     expect(result.sampledRows.length).toBe(5);
     expect(result.totalRows).toBe(7);
   });
+
+  it('preserves numeric 0 in headers', () => {
+    const mockData = [
+      [0, 1, 'Total'],
+      [10, 20, 30],
+    ];
+    const result = compressTableContext(mockData);
+    expect(result.headers).toEqual(['0', '1', 'Total']);
+  });
 });

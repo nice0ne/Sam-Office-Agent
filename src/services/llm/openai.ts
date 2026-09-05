@@ -13,6 +13,11 @@ export class OpenAICompatibleProvider implements ILLMProvider {
   }
 
   async *sendMessage(req: ChatRequest, config: ProviderConfig): AsyncIterable<StreamEvent> {
+    if (!config.apiKey && this.id !== 'ollama') {
+      yield { type: 'error', error: `API Key ${this.name} belum diisi.` };
+      return;
+    }
+
     const baseUrl = (config.baseUrl || this.defaultBaseUrl).replace(/\/+$/, '');
     const url = `${baseUrl}/chat/completions`;
 
@@ -149,12 +154,19 @@ export class OpenAICompatibleProvider implements ILLMProvider {
 
     const baseUrl = (config.baseUrl || this.defaultBaseUrl).replace(/\/+$/, '');
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+      };
+
+      if (this.id === 'openrouter') {
+        headers['HTTP-Referer'] = 'https://github.com/Sam-Office-Agent';
+        headers['X-Title'] = 'Sam Office Agent';
+      }
+
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.apiKey}`,
-        },
+        headers,
         body: JSON.stringify({
           model: config.selectedModel,
           messages: [{ role: 'user', content: 'Ping' }],

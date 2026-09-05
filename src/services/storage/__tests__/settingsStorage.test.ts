@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getSettings,
   saveSettings,
@@ -86,5 +86,29 @@ describe('Settings Storage Service', () => {
 
     const reloaded = getSettings();
     expect(reloaded.theme).toBe('dark');
+  });
+
+  it('handles localStorage.setItem throwing without uncaught exceptions', () => {
+    const setItemSpy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(() => {
+      saveSettings(getSettings());
+    }).not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith('Gagal menyimpan ke localStorage:', expect.any(Error));
+
+    setItemSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it('ensures getSettings returns independent deep clones of DEFAULT_PROVIDERS', () => {
+    const s1 = getSettings();
+    s1.providers.gemini.selectedModel = 'modified-model';
+
+    const s2 = getSettings();
+    expect(s2.providers.gemini.selectedModel).not.toBe('modified-model');
   });
 });

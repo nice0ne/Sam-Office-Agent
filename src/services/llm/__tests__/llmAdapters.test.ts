@@ -265,6 +265,46 @@ describe('OpenAICompatibleProvider', () => {
     expect(events[0].type).toBe('error');
     expect(events[0].error).toBe('Connection aborted');
   });
+
+  it('yields error event immediately when apiKey is missing in sendMessage (except ollama)', async () => {
+    const openai = new OpenAICompatibleProvider('openai', 'OpenAI', 'https://api.openai.com/v1');
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy;
+
+    const events = [];
+    for await (const event of openai.sendMessage(
+      { messages: [{ id: '1', role: 'user', content: 'Hi', timestamp: 1 }] },
+      { id: 'openai', name: 'OpenAI', apiKey: '', selectedModel: 'gpt-4o', enabled: true }
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({ type: 'error', error: 'API Key OpenAI belum diisi.' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('attaches OpenRouter specific headers during testConnection', async () => {
+    const openrouter = new OpenAICompatibleProvider('openrouter', 'OpenRouter', 'https://openrouter.ai/api/v1');
+    let capturedHeaders: any = {};
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      capturedHeaders = options.headers;
+      return { ok: true } as any;
+    });
+
+    const result = await openrouter.testConnection({
+      id: 'openrouter',
+      name: 'OpenRouter',
+      apiKey: 'sk-or-test',
+      selectedModel: 'deepseek/deepseek-chat',
+      enabled: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(capturedHeaders['HTTP-Referer']).toBe('https://github.com/Sam-Office-Agent');
+    expect(capturedHeaders['X-Title']).toBe('Sam Office Agent');
+    expect(capturedHeaders['Authorization']).toBe('Bearer sk-or-test');
+  });
 });
 
 describe('GeminiProvider', () => {

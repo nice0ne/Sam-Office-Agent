@@ -65,7 +65,7 @@ export function getSettings(): AppSettings {
         activeProviderId: 'gemini',
         executionMode: 'copilot',
         theme: 'system',
-        providers: { ...DEFAULT_PROVIDERS },
+        providers: structuredClone(DEFAULT_PROVIDERS),
       };
     }
     const parsed = JSON.parse(raw);
@@ -73,20 +73,24 @@ export function getSettings(): AppSettings {
       activeProviderId: parsed.activeProviderId || 'gemini',
       executionMode: parsed.executionMode || 'copilot',
       theme: parsed.theme || 'system',
-      providers: { ...DEFAULT_PROVIDERS, ...(parsed.providers || {}) },
+      providers: { ...structuredClone(DEFAULT_PROVIDERS), ...(parsed.providers || {}) },
     };
   } catch {
     return {
       activeProviderId: 'gemini',
       executionMode: 'copilot',
       theme: 'system',
-      providers: { ...DEFAULT_PROVIDERS },
+      providers: structuredClone(DEFAULT_PROVIDERS),
     };
   }
 }
 
 export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Gagal menyimpan ke localStorage:', e);
+  }
 }
 
 export function saveProviderConfig(config: ProviderConfig): void {

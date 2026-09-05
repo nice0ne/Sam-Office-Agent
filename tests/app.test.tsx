@@ -352,6 +352,47 @@ describe('App Chat & LLM Streaming Integration', () => {
 
     expect(messages[2].content).toContain('[Error: Jaringan terputus ke LLM endpoint]');
   });
+
+  it('locks concurrency by updating isBusy state during sendMessage', async () => {
+    let resolveStream: () => void;
+    const streamGate = new Promise<void>(resolve => {
+      resolveStream = resolve;
+    });
+
+    async function* controlledStream(): AsyncIterable<StreamEvent> {
+      yield { type: 'content_delta', delta: 'Wait...' };
+      await streamGate;
+      yield { type: 'done' };
+    }
+
+    const mockProvider: ILLMProvider = {
+      id: 'gemini',
+      name: 'Google Gemini',
+      sendMessage: vi.fn().mockReturnValue(controlledStream()),
+      testConnection: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
+    };
+
+    vi.spyOn(llmFactory, 'getLLMProvider').mockReturnValue(mockProvider);
+
+    const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+    let vdom = harness.render();
+
+    let inputBar = vdom.props.children[2];
+    expect(inputBar.props.disabled).toBe(false);
+
+    const sendPromise = inputBar.props.onSendMessage('Test busy lock');
+
+    vdom = harness.render();
+    inputBar = vdom.props.children[2];
+    expect(inputBar.props.disabled).toBe(true);
+
+    resolveStream!();
+    await sendPromise;
+
+    vdom = harness.render();
+    inputBar = vdom.props.children[2];
+    expect(inputBar.props.disabled).toBe(false);
+  });
 });
 
 describe('Copilot Mode Tool Call Workflow (Preview & Manual Apply)', () => {

@@ -22,6 +22,7 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [executionMode, setMode] = useState<ExecutionMode>(getExecutionMode());
   const [coordinator] = useState(() => new SamCoordinator());
+  const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     const office = typeof window !== 'undefined' ? (window as any).Office : (globalThis as any).Office;
@@ -41,18 +42,24 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
   };
 
   const handleApplyToolCall = async (toolCall: ToolCall) => {
-    const specialist = coordinator.getSpecialist(host);
-    toolCall.status = 'pending';
-    setMessages(prev => [...prev]);
-    const result = await specialist.executeTool(toolCall, { host });
-    toolCall.status = result.success ? 'applied' : 'failed';
-    toolCall.error = result.error;
-    setMessages(prev => [...prev]);
+    setIsBusy(true);
+    try {
+      const specialist = coordinator.getSpecialist(host);
+      toolCall.status = 'pending';
+      setMessages(prev => [...prev]);
+      const result = await specialist.executeTool(toolCall, { host });
+      toolCall.status = result.success ? 'applied' : 'failed';
+      toolCall.error = result.error;
+      setMessages(prev => [...prev]);
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isBusy) return;
 
+    setIsBusy(true);
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
       role: 'user',
@@ -97,6 +104,7 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
 
           if (executionMode === 'autopilot') {
             await handleApplyToolCall(chunk.toolCall);
+            setIsBusy(true);
           }
         } else if (chunk.type === 'error') {
           assistantMsg.content += `\n[Error: ${chunk.error}]`;
@@ -106,6 +114,8 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
     } catch (e: any) {
       assistantMsg.content += `\n[Error: ${e.message}]`;
       setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -121,7 +131,7 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
 
       <ChatContainer messages={messages} onApplyToolCall={handleApplyToolCall} />
 
-      <InputBar onSendMessage={handleSendMessage} />
+      <InputBar onSendMessage={handleSendMessage} disabled={isBusy} />
 
       <SettingsModal
         isOpen={isSettingsOpen}

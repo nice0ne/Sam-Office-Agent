@@ -65,6 +65,10 @@ Konteks saat ini: ${context.activeCellOrRange || 'Sheet aktif'}.`;
     try {
       if (toolCall.name === 'write_cells') {
         const { range, formula, values } = toolCall.arguments;
+        const hasValues = Array.isArray(values) ? values.length > 0 : Boolean(values);
+        if (!formula && !hasValues) {
+          return { success: false, error: 'Harus menyertakan setidaknya formula atau values untuk range.' };
+        }
         if (formula) {
           const validation = validateExcelFormula(formula);
           if (!validation.isValid) {

@@ -29,4 +29,9 @@ describe('validateExcelFormula', () => {
   it('handles parentheses inside string literals correctly', () => {
     expect(validateExcelFormula('=IF(A1="test (1)", "ok )", "fail")').isValid).toBe(true);
   });
+
+  it('handles Excel doubled quotes "" inside string literals correctly', () => {
+    expect(validateExcelFormula('=IF(A1="He said ""Hello (world)""", 1, 0)').isValid).toBe(true);
+    expect(validateExcelFormula('="Quotes: ""("" and "")"""').isValid).toBe(true);
+  });
 });
