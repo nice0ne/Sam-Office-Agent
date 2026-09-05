@@ -9,6 +9,8 @@ import { SamCoordinator } from './agents/coordinator/samCoordinator';
 import { getLLMProvider } from './services/llm/factory';
 import { getOfficeDriver } from './services/office';
 import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from './utils/theme';
+import { compressTableContext } from './utils/contextCompressor';
+import { AgentContext } from './agents/types';
 
 export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel' }) => {
   const [host, setHost] = useState<HostType>(initialHost);
@@ -95,7 +97,42 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
     const providerConfig = getActiveProvider();
     const provider = getLLMProvider(providerConfig.id);
     const specialist = coordinator.getSpecialist(host);
-    const systemPrompt = coordinator.buildSystemPrompt(host, { host });
+
+    let activeContext: AgentContext = { host };
+    try {
+      const driver = getOfficeDriver(host);
+      if (host === 'Excel') {
+        const sheetData = driver.readActiveSheetData ? await driver.readActiveSheetData() : await driver.readActiveRange();
+        if (sheetData && sheetData.values && sheetData.values.length > 0) {
+          const summary = compressTableContext(sheetData.values, 30);
+          activeContext = {
+            host,
+            activeCellOrRange: `${(sheetData as any).sheetName || 'Sheet'}!${sheetData.address}`,
+            documentSummary: `Data Lembar Kerja (${(sheetData as any).sheetName || 'Sheet'}!${sheetData.address}):\n${summary.summaryText}\nNilai Data Terbaca:\n${JSON.stringify(sheetData.values.slice(0, 30))}`,
+          };
+        }
+      } else if (host === 'Word') {
+        const outline = await driver.getWordOutline?.();
+        if (outline && outline !== 'Dokumen Word Kosong.') {
+          activeContext = {
+            host,
+            documentSummary: `Isi Dokumen Word:\n${outline.slice(0, 3000)}`,
+          };
+        }
+      } else if (host === 'PowerPoint') {
+        const slide = await driver.getSlideContext?.();
+        if (slide) {
+          activeContext = {
+            host,
+            documentSummary: `Slide #${slide.slideNumber}: "${slide.title}"\n${slide.textContent}`,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal membaca konteks dokumen:', e);
+    }
+
+    const systemPrompt = coordinator.buildSystemPrompt(host, activeContext);
     const tools = specialist.getTools();
 
     try {

@@ -15,11 +15,24 @@ Jika pengguna meminta membuat tabel data: LANGSUNG panggil tool \`write_cells\` 
 Jika pengguna meminta menulis formula, pastikan sintaks formula valid dan diawali '='.
 Gunakan \`format_range\` untuk memberi style pada header (bold, fillColor) dan format angka (numberFormat).
 Gunakan \`create_chart\` jika diminta grafik visualisasi data.
-Konteks saat ini: ${context.activeCellOrRange || 'Sheet aktif'}.`;
+Konteks Sheet Saat Ini: ${context.activeCellOrRange || 'Sheet aktif'}.
+${context.documentSummary ? `\n--- DATA WORKSHEET AKTIF SAAT INI ---\n${context.documentSummary}\n--------------------------------------\n` : ''}
+PENTING:
+Jika pengguna meminta ringkasan ("summary tabsheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.`;
   }
 
   getTools(): ToolDefinition[] {
     return [
+      {
+        name: 'read_sheet',
+        description: 'Membaca atau memperbarui pembacaan data tabel dari worksheet Excel yang sedang aktif (atau range tertentu misal "A1:G30").',
+        parameters: {
+          type: 'object',
+          properties: {
+            range: { type: 'string', description: 'Range sel opsional, misal: "A1:D20". Jika kosong, membaca seluruh usedRange aktif.' },
+          },
+        },
+      },
       {
         name: 'write_cells',
         description: 'Menulis nilai atau formula ke range sel Excel tertentu (misal: A1:B10).',
@@ -66,6 +79,21 @@ Konteks saat ini: ${context.activeCellOrRange || 'Sheet aktif'}.`;
   async executeTool(toolCall: ToolCall, _context: AgentContext): Promise<{ success: boolean; result?: any; error?: string }> {
     const driver = getOfficeDriver('Excel');
     try {
+      if (toolCall.name === 'read_sheet') {
+        const { range } = toolCall.arguments || {};
+        const data = (driver.readActiveSheetData ? await driver.readActiveSheetData(range) : await driver.readActiveRange());
+        return {
+          success: true,
+          result: {
+            sheetName: (data as any)?.sheetName || 'Sheet1',
+            address: data.address,
+            rowCount: (data as any)?.rowCount || data.values.length,
+            columnCount: (data as any)?.columnCount || (data.values[0]?.length || 0),
+            values: data.values,
+          },
+        };
+      }
+
       if (toolCall.name === 'write_cells') {
         const { range, formula, values } = toolCall.arguments;
         const hasValues = Array.isArray(values) ? values.length > 0 : Boolean(values);

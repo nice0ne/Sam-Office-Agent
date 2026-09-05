@@ -30,6 +30,18 @@ export class MockOfficeDriver implements IDocumentDriver {
     };
   }
 
+  async readActiveSheetData(range?: string) {
+    const res = await this.readActiveRange();
+    return {
+      sheetName: 'Sheet1',
+      address: range || res.address,
+      rowCount: res.values.length,
+      columnCount: res.values[0]?.length || 0,
+      values: res.values,
+      formulas: res.formulas,
+    };
+  }
+
   async writeCells(range: string, values?: any[][], formulas?: string[][]) {
     if (values) {
       this.excelGrid[range] = values;

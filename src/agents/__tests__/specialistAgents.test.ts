@@ -13,6 +13,7 @@ describe('Specialist Agents Tools & Prompts', () => {
     const agent = new ExcelAgent();
     const tools = agent.getTools();
     const toolNames = tools.map(t => t.name);
+    expect(toolNames).toContain('read_sheet');
     expect(toolNames).toContain('write_cells');
     expect(toolNames).toContain('format_range');
     expect(toolNames).toContain('create_chart');
@@ -106,6 +107,22 @@ describe('Specialist Agents Tools & Prompts', () => {
       );
       expect(result.success).toBe(false);
       expect(result.error).toBe('Harus menyertakan setidaknya formula atau values untuk range.');
+    });
+
+    it('reads sheet data and summary via read_sheet tool', async () => {
+      const result = await agent.executeTool(
+        {
+          id: 'call-read-1',
+          name: 'read_sheet',
+          arguments: { range: 'A1:C5' },
+          status: 'pending',
+        },
+        context
+      );
+      expect(result.success).toBe(true);
+      expect(result.result).toBeDefined();
+      expect(result.result.values.length).toBeGreaterThan(0);
+      expect(result.result.sheetName).toBe('Sheet1');
     });
 
     it('rejects write_cells when values array is empty', async () => {

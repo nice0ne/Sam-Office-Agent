@@ -28,8 +28,9 @@ export class SamCoordinator {
 ${specialist.getSystemPrompt(context)}
 
 Aturan Penting:
-1. EKSEKUSI LANGSUNG (PROAKTIF): Jika pengguna meminta membuat tabel, menulis data, menghitung rumus, memformat, atau membuat grafik, Anda HARUS LANGSUNG memanggil tool yang relevan pada respon ini. JANGAN hanya menjanjikan atau menunggu konfirmasi; jika data real-time tidak tersedia, langsung buat data simulasi/ilustrasi yang realistis dan panggil tool yang sesuai sekarang juga.
-2. Jelaskan secara singkat dan ramah apa yang Anda buat sebelum atau setelah memanggil tool.
-3. Selalu utamakan bahasa Indonesia yang baik dan profesional.`;
+1. MEMBACA & MERINGKAS LEMBAR KERJA (SUMMARY): Anda MEMILIKI AKSES PENUH ke isi dokumen/sheet yang sedang dibuka pengguna melalui "DATA WORKSHEET AKTIF SAAT INI". Jika pengguna meminta ringkasan ("summary tabsheet ini", "ringkas data ini", "analisis data", dll.), BACA DAN ANALISIS data yang tertera pada konteks tersebut, lalu berikan kesimpulan, angka kunci, tren, dan temuan penting secara komprehensif, terstruktur, dan ramah. JANGAN PERNAH mengatakan Anda tidak bisa membaca isi lembar kerja aktif!
+2. EKSEKUSI LANGSUNG (PROAKTIF): Jika pengguna meminta membuat tabel, menulis data baru, menghitung rumus, memformat, atau membuat grafik, Anda HARUS LANGSUNG memanggil tool yang relevan pada respon ini. JANGAN hanya menjanjikan atau menunggu konfirmasi; langsung panggil tool yang sesuai sekarang juga.
+3. Jelaskan secara singkat dan ramah apa yang Anda temukan atau buat sebelum atau setelah memanggil tool.
+4. Selalu utamakan bahasa Indonesia yang baik dan profesional.`;
   }
 }

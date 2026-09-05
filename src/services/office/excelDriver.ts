@@ -18,6 +18,43 @@ export class ExcelDriver implements Partial<IDocumentDriver> {
     });
   }
 
+  async readActiveSheetData(rangeAddress?: string) {
+    return await Excel.run(async (context: any) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      sheet.load(['name']);
+      let range: any;
+      if (rangeAddress) {
+        range = sheet.getRange(rangeAddress);
+      } else {
+        range = typeof sheet.getUsedRangeOrNullObject === 'function'
+          ? sheet.getUsedRangeOrNullObject(true)
+          : sheet.getUsedRange(true);
+      }
+      range.load(['address', 'values', 'formulas', 'rowCount', 'columnCount']);
+      await context.sync();
+
+      if (range.isNullObject || !range.values) {
+        return {
+          sheetName: sheet.name,
+          address: 'Empty',
+          rowCount: 0,
+          columnCount: 0,
+          values: [],
+          formulas: [],
+        };
+      }
+
+      return {
+        sheetName: sheet.name,
+        address: range.address,
+        rowCount: range.rowCount,
+        columnCount: range.columnCount,
+        values: range.values,
+        formulas: range.formulas,
+      };
+    });
+  }
+
   async writeCells(rangeAddress: string, values?: any[][], formulas?: string[][]) {
     await Excel.run(async (context: any) => {
       const sheet = context.workbook.worksheets.getActiveWorksheet();
