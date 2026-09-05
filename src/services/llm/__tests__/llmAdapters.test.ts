@@ -339,11 +339,11 @@ describe('GeminiProvider', () => {
     expect(events).toEqual([{ type: 'error', error: 'API Key Google Gemini belum diisi.' }]);
   });
 
-  it('streams content_delta from Gemini JSON stream', async () => {
+  it('streams content_delta from Gemini SSE stream', async () => {
     const gemini = new GeminiProvider();
     const chunks = [
-      '[\n{\n"candidates": [{\n"content": {\n"parts": [{\n"text": "Hello "\n}]\n}\n}]\n}\n',
-      ',\n{\n"candidates": [{\n"content": {\n"parts": [{\n"text": "from Gemini!"\n}]\n}\n}]\n}\n]\n',
+      'data: {"candidates": [{"content": {"parts": [{"text": "Hello "}]}}]}\n\n',
+      'data: {"candidates": [{"content": {"parts": [{"text": "from Gemini!"}]}}]}\n\n',
     ];
 
     const encoder = new TextEncoder();
@@ -384,7 +384,7 @@ describe('GeminiProvider', () => {
       events.push(event);
     }
 
-    expect(requestUrl).toContain('gemini-2.0-flash:streamGenerateContent?key=test-gemini-key');
+    expect(requestUrl).toContain('gemini-2.0-flash:streamGenerateContent?alt=sse&key=test-gemini-key');
     expect(requestBody.systemInstruction.parts[0].text).toBe('Be a helpful office assistant');
     expect(requestBody.contents[0].role).toBe('user');
     expect(requestBody.contents[1].role).toBe('model');
@@ -395,6 +395,57 @@ describe('GeminiProvider', () => {
       { type: 'content_delta', delta: 'from Gemini!' },
       { type: 'done' },
     ]);
+  });
+
+  it('streams tool_call events from Gemini functionCall parts', async () => {
+    const gemini = new GeminiProvider();
+    const chunks = [
+      'data: {"candidates": [{"content": {"parts": [{"functionCall": {"name": "read_cell", "args": {"address": "B2"}}}]}}]}\n\n',
+    ];
+
+    const encoder = new TextEncoder();
+    let chunkIndex = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (chunkIndex < chunks.length) {
+          controller.enqueue(encoder.encode(chunks[chunkIndex++]));
+        } else {
+          controller.close();
+        }
+      },
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: stream,
+    });
+
+    const events = [];
+    for await (const event of gemini.sendMessage(
+      {
+        messages: [{ id: '1', role: 'user', content: 'Read cell B2', timestamp: 100 }],
+        tools: [
+          {
+            name: 'read_cell',
+            description: 'Read a cell',
+            parameters: {
+              type: 'object',
+              properties: { address: { type: 'string', description: 'Address' } },
+            },
+          },
+        ],
+      },
+      { id: 'gemini', name: 'Google Gemini', apiKey: 'test-gemini-key', selectedModel: 'gemini-2.0-flash', enabled: true }
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toHaveLength(2);
+    expect(events[0].type).toBe('tool_call');
+    expect(events[0].toolCall?.name).toBe('read_cell');
+    expect(events[0].toolCall?.arguments).toEqual({ address: 'B2' });
+    expect(events[0].toolCall?.status).toBe('pending');
+    expect(events[1]).toEqual({ type: 'done' });
   });
 });
 
@@ -522,6 +573,87 @@ describe('AnthropicProvider', () => {
     expect(events).toEqual([
       { type: 'content_delta', delta: 'Hello ' },
       { type: 'content_delta', delta: 'from Claude!' },
+      { type: 'done' },
+    ]);
+  });
+
+  it('streams tool_call events and sends input_schema for Anthropic tools', async () => {
+    const claude = new AnthropicProvider();
+    const sseChunks = [
+      'data: {"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": "toolu_abc", "name": "write_formula"}}\n\n',
+      'data: {"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": "{\\"cell\\": \\"C1\\""}}\n\n',
+      'data: {"type": "content_block_delta", "index": 0, "delta": {"type": "input_json_delta", "partial_json": ", \\"formula\\": \\"=SUM(A1:B1)\\"}"}}\n\n',
+      'data: {"type": "content_block_stop", "index": 0}\n\n',
+      'data: {"type": "message_stop"}\n\n',
+    ];
+
+    const encoder = new TextEncoder();
+    let chunkIndex = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (chunkIndex < sseChunks.length) {
+          controller.enqueue(encoder.encode(sseChunks[chunkIndex++]));
+        } else {
+          controller.close();
+        }
+      },
+    });
+
+    let requestBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation((_url, opts) => {
+      requestBody = JSON.parse(opts.body);
+      return Promise.resolve({
+        ok: true,
+        body: stream,
+      });
+    });
+
+    const tools: ToolDefinition[] = [
+      {
+        name: 'write_formula',
+        description: 'Write a formula',
+        parameters: {
+          type: 'object',
+          properties: {
+            cell: { type: 'string', description: 'Cell' },
+            formula: { type: 'string', description: 'Formula' },
+          },
+          required: ['cell', 'formula'],
+        },
+      },
+    ];
+
+    const events = [];
+    for await (const event of claude.sendMessage(
+      {
+        messages: [{ id: '1', role: 'user', content: 'Sum A1 and B1 in C1', timestamp: 10 }],
+        tools,
+      },
+      { id: 'claude', name: 'Anthropic Claude', apiKey: 'claude-key', selectedModel: 'claude-3-5-sonnet-20241022', enabled: true }
+    )) {
+      events.push(event);
+    }
+
+    // Verify tools mapping to input_schema
+    expect(requestBody.tools).toEqual([
+      {
+        name: 'write_formula',
+        description: 'Write a formula',
+        input_schema: tools[0].parameters,
+      },
+    ]);
+
+    // Verify stream events
+    expect(events).toEqual([
+      {
+        type: 'tool_call',
+        toolCall: {
+          id: 'toolu_abc',
+          name: 'write_formula',
+          arguments: { cell: 'C1', formula: '=SUM(A1:B1)' },
+          status: 'pending',
+        },
+      },
       { type: 'done' },
     ]);
   });

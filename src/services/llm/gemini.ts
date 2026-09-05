@@ -12,7 +12,7 @@ export class GeminiProvider implements ILLMProvider {
     }
 
     const model = config.selectedModel || 'gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${config.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(config.apiKey)}`;
 
     const contents = req.messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -66,17 +66,39 @@ export class GeminiProvider implements ILLMProvider {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        // Gemini returns chunks of JSON array format
-        // Simple extraction of text parts and functionCalls
-        const textMatches = [...buffer.matchAll(/"text":\s*"((?:[^"\\]|\\.)*)"/g)];
-        if (textMatches.length > 0) {
-          for (const match of textMatches) {
-            try {
-              const text = JSON.parse(`"${match[1]}"`);
-              yield { type: 'content_delta', delta: text };
-            } catch {}
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const clean = line.trim();
+          if (!clean || !clean.startsWith('data: ')) continue;
+          if (clean === 'data: [DONE]') continue;
+
+          try {
+            const data = JSON.parse(clean.slice(6));
+            const candidates = data.candidates || [];
+            for (const cand of candidates) {
+              const parts = cand.content?.parts || [];
+              for (const part of parts) {
+                if (part.text) {
+                  yield { type: 'content_delta', delta: part.text };
+                }
+                if (part.functionCall) {
+                  yield {
+                    type: 'tool_call',
+                    toolCall: {
+                      id: `call_gemini_${Date.now()}`,
+                      name: part.functionCall.name,
+                      arguments: part.functionCall.args || {},
+                      status: 'pending',
+                    },
+                  };
+                }
+              }
+            }
+          } catch {
+            // Ignore malformed SSE chunks
           }
-          buffer = '';
         }
       }
 
@@ -91,7 +113,7 @@ export class GeminiProvider implements ILLMProvider {
       return { success: false, message: 'API Key Gemini belum diisi.' };
     }
     const model = config.selectedModel || 'gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
 
     try {
       const res = await fetch(url, {

@@ -28,6 +28,14 @@ export class AnthropicProvider implements ILLMProvider {
       body.system = req.systemPrompt;
     }
 
+    if (req.tools && req.tools.length > 0) {
+      body.tools = req.tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters,
+      }));
+    }
+
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -51,6 +59,7 @@ export class AnthropicProvider implements ILLMProvider {
 
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      const activeToolBlocks: Record<number, { id: string; name: string; json: string }> = {};
 
       while (true) {
         const { done, value } = await reader.read();
@@ -65,11 +74,68 @@ export class AnthropicProvider implements ILLMProvider {
           if (!clean.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(clean.slice(6));
-            if (data.type === 'content_block_delta' && data.delta?.text) {
-              yield { type: 'content_delta', delta: data.delta.text };
+
+            if (data.type === 'content_block_start' && data.content_block?.type === 'tool_use') {
+              activeToolBlocks[data.index] = {
+                id: data.content_block.id || `call_claude_${Date.now()}_${data.index}`,
+                name: data.content_block.name || '',
+                json: '',
+              };
+            }
+
+            if (data.type === 'content_block_delta') {
+              if (data.delta?.type === 'text_delta' && data.delta?.text) {
+                yield { type: 'content_delta', delta: data.delta.text };
+              }
+              if (data.delta?.type === 'input_json_delta' && data.delta?.partial_json) {
+                if (activeToolBlocks[data.index]) {
+                  activeToolBlocks[data.index].json += data.delta.partial_json;
+                }
+              }
+            }
+
+            if (data.type === 'content_block_stop') {
+              if (activeToolBlocks[data.index]) {
+                const tb = activeToolBlocks[data.index];
+                delete activeToolBlocks[data.index];
+                let args = {};
+                try {
+                  args = JSON.parse(tb.json);
+                } catch {
+                  args = {};
+                }
+                yield {
+                  type: 'tool_call',
+                  toolCall: {
+                    id: tb.id,
+                    name: tb.name,
+                    arguments: args,
+                    status: 'pending',
+                  },
+                };
+              }
             }
           } catch {}
         }
+      }
+
+      for (const idx in activeToolBlocks) {
+        const tb = activeToolBlocks[idx];
+        let args = {};
+        try {
+          args = JSON.parse(tb.json);
+        } catch {
+          args = {};
+        }
+        yield {
+          type: 'tool_call',
+          toolCall: {
+            id: tb.id,
+            name: tb.name,
+            arguments: args,
+            status: 'pending',
+          },
+        };
       }
 
       yield { type: 'done' };
