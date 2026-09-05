@@ -8,6 +8,7 @@ import { getActiveProvider, getExecutionMode, setExecutionMode } from './service
 import { SamCoordinator } from './agents/coordinator/samCoordinator';
 import { getLLMProvider } from './services/llm/factory';
 import { getOfficeDriver } from './services/office';
+import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from './utils/theme';
 
 export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel' }) => {
   const [host, setHost] = useState<HostType>(initialHost);
@@ -23,6 +24,19 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
   const [executionMode, setMode] = useState<ExecutionMode>(getExecutionMode());
   const [coordinator] = useState(() => new SamCoordinator());
   const [isBusy, setIsBusy] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getStoredThemeMode);
+
+  useEffect(() => {
+    applyTheme(themeMode);
+  }, [themeMode]);
+
+  const handleToggleTheme = () => {
+    const nextTheme: ThemeMode =
+      themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+    setThemeMode(nextTheme);
+    setStoredThemeMode(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   useEffect(() => {
     const office = typeof window !== 'undefined' ? (window as any).Office : (globalThis as any).Office;
@@ -127,9 +141,15 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         executionMode={executionMode}
         onToggleMode={handleToggleMode}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        themeMode={themeMode}
+        onToggleTheme={handleToggleTheme}
       />
 
-      <ChatContainer messages={messages} onApplyToolCall={handleApplyToolCall} />
+      <ChatContainer
+        messages={messages}
+        onApplyToolCall={handleApplyToolCall}
+        isExecuting={isBusy}
+      />
 
       <InputBar onSendMessage={handleSendMessage} disabled={isBusy} />
 

@@ -327,6 +327,21 @@ describe('MessageBubble Component', () => {
     expect(html).toContain('Quota API terlampaui');
   });
 
+  it('renders thinking bouncing dots animation when assistant message is empty', () => {
+    const thinkingMsg: ChatMessage = {
+      id: 'msg-think',
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      toolCalls: [],
+    };
+    const html = renderToString(<MessageBubble message={thinkingMsg} onApplyToolCall={() => {}} />);
+    expect(html).toContain('Sam sedang berpikir...');
+    expect(html).toContain('animate-dot-1');
+    expect(html).toContain('animate-dot-2');
+    expect(html).toContain('animate-dot-3');
+  });
+
   it('passes onApplyToolCall callback to embedded ActionCard', () => {
     const onApplyToolCall = vi.fn();
     const harness = createHookHarness(MessageBubble, {

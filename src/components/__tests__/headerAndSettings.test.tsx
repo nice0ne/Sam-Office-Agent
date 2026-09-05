@@ -197,11 +197,35 @@ describe('Header Component', () => {
     }) as React.ReactElement;
 
     const rightDiv = vdom.props.children[1];
-    const settingsButton = rightDiv.props.children[1];
+    const buttons = React.Children.toArray(rightDiv.props.children);
+    const settingsButton = buttons[buttons.length - 1] as React.ReactElement;
     settingsButton.props.onClick();
 
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
     expect(onToggleMode).not.toHaveBeenCalled();
+  });
+
+  it('renders theme toggle button and calls onToggleTheme on click', () => {
+    const onToggleTheme = vi.fn();
+    const vdom = Header({
+      host: 'Excel',
+      activeProviderId: 'gemini',
+      executionMode: 'copilot',
+      onToggleMode: () => {},
+      onOpenSettings: () => {},
+      themeMode: 'dark',
+      onToggleTheme,
+    }) as React.ReactElement;
+
+    const rightDiv = vdom.props.children[1];
+    const buttons = React.Children.toArray(rightDiv.props.children);
+    const themeButton = buttons.find(
+      (btn: any) => btn?.props?.['aria-label'] === 'Ganti Tema'
+    ) as React.ReactElement;
+
+    expect(themeButton).toBeDefined();
+    themeButton.props.onClick();
+    expect(onToggleTheme).toHaveBeenCalledTimes(1);
   });
 });
 
