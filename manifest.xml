@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>d2c3e1b7-4a5f-4d9a-9e12-8b7a4c9f1a23</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Sam Office</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Sam Office Agent" />
+  <Description DefaultValue="Universal multi-agent AI assistant for Microsoft Excel, Word, and PowerPoint." />
+  <IconUrl DefaultValue="https://localhost:5173/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:5173/icon-64.png" />
+  <SupportUrl DefaultValue="https://github.com/Sam-Office-Agent" />
+
+  <Hosts>
+    <Host Name="Workbook" />
+    <Host Name="Document" />
+    <Host Name="Presentation" />
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:5173/" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
