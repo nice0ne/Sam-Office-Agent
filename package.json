@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:tray": "powershell -ExecutionPolicy Bypass -File ./scripts/build-tray-installer.ps1",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
