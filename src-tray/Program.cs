@@ -32,13 +32,32 @@ namespace SamOfficeAgent
         {
             if (args != null && args.Length > 0)
             {
-                if (AttachConsole(ATTACH_PARENT_PROCESS))
+                if (!Console.IsOutputRedirected)
                 {
-                    StreamWriter standardOutput = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
-                    Console.SetOut(standardOutput);
-                    StreamWriter standardError = new StreamWriter(Console.OpenStandardError()) { AutoFlush = true };
-                    Console.SetError(standardError);
+                    AttachConsole(ATTACH_PARENT_PROCESS);
                 }
+
+                try
+                {
+                    Stream outputStream = Console.OpenStandardOutput();
+                    if (outputStream != Stream.Null)
+                    {
+                        StreamWriter standardOutput = new StreamWriter(outputStream, Console.OutputEncoding ?? Encoding.UTF8) { AutoFlush = true };
+                        Console.SetOut(standardOutput);
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    Stream errorStream = Console.OpenStandardError();
+                    if (errorStream != Stream.Null)
+                    {
+                        StreamWriter standardError = new StreamWriter(errorStream, Console.OutputEncoding ?? Encoding.UTF8) { AutoFlush = true };
+                        Console.SetError(standardError);
+                    }
+                }
+                catch { }
 
                 string command = args[0].Trim().ToLowerInvariant();
 
@@ -51,6 +70,18 @@ namespace SamOfficeAgent
 
                 if (command == "--test")
                 {
+                    if (!TestMutexEnforcement())
+                    {
+                        Console.Error.WriteLine("SamTrayServer self-test: Mutex enforcement FAILED");
+                        return 1;
+                    }
+
+                    if (!TestCertificateGeneration())
+                    {
+                        Console.Error.WriteLine("SamTrayServer self-test: Certificate generation FAILED");
+                        return 1;
+                    }
+
                     Console.WriteLine("SamTrayServer self-test: OK");
                     return 0;
                 }
@@ -118,34 +149,43 @@ namespace SamOfficeAgent
             return 0;
         }
 
-        private static bool AcquireMutex()
+        internal static bool AcquireMutex()
         {
             bool createdNew = false;
             try
             {
-                _appMutex = new Mutex(true, GlobalMutexName, out createdNew);
-                if (createdNew)
+                Mutex m = new Mutex(true, GlobalMutexName, out createdNew);
+                if (!createdNew)
                 {
-                    return true;
+                    if (m != null) { m.Close(); }
+                    return false;
                 }
+                _appMutex = m;
+                return true;
             }
-            catch
+            catch (Exception)
             {
-                // Global mutex restricted or failed, try Local
+                // Global mutex creation threw (e.g. access denied), try Local mutex
             }
 
             try
             {
-                _appMutex = new Mutex(true, LocalMutexName, out createdNew);
-                return createdNew;
-            }
-            catch
-            {
+                Mutex m = new Mutex(true, LocalMutexName, out createdNew);
+                if (!createdNew)
+                {
+                    if (m != null) { m.Close(); }
+                    return false;
+                }
+                _appMutex = m;
                 return true;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 
-        private static void ReleaseMutex()
+        internal static void ReleaseMutex()
         {
             if (_appMutex != null)
             {
@@ -156,6 +196,87 @@ namespace SamOfficeAgent
                 catch { }
                 _appMutex.Close();
                 _appMutex = null;
+            }
+        }
+
+        internal static bool TestMutexEnforcement()
+        {
+            ReleaseMutex();
+
+            // 1. First acquire must succeed
+            bool first = AcquireMutex();
+            if (!first)
+            {
+                Console.Error.WriteLine("FAILED TestMutexEnforcement: First AcquireMutex() returned false.");
+                return false;
+            }
+
+            // 2. Second acquire on a separate thread must return false (single-instance enforcement)
+            bool second = true;
+            Thread t = new Thread(delegate()
+            {
+                second = AcquireMutex();
+            });
+            t.Start();
+            t.Join();
+
+            if (second)
+            {
+                Console.Error.WriteLine("FAILED TestMutexEnforcement: Second AcquireMutex() succeeded while mutex was held!");
+                ReleaseMutex();
+                return false;
+            }
+
+            // 3. Release and verify re-acquire succeeds
+            ReleaseMutex();
+            bool reacquire = AcquireMutex();
+            if (!reacquire)
+            {
+                Console.Error.WriteLine("FAILED TestMutexEnforcement: Re-acquire after release returned false.");
+                return false;
+            }
+
+            ReleaseMutex();
+            return true;
+        }
+
+        internal static bool TestCertificateGeneration()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "SamTrayCertTest_" + Guid.NewGuid().ToString("N"));
+            string tempPfx = Path.Combine(tempDir, "test.pfx");
+            try
+            {
+                bool generated = TrayApplicationContext.GenerateSelfSignedCertificate(tempPfx, "testpass123");
+                if (!generated || !File.Exists(tempPfx))
+                {
+                    Console.Error.WriteLine("FAILED TestCertificateGeneration: Certificate was not generated.");
+                    return false;
+                }
+
+                X509Certificate2 cert = TrayApplicationContext.TryLoadPfx(tempPfx);
+                if (cert == null)
+                {
+                    Console.Error.WriteLine("FAILED TestCertificateGeneration: Generated certificate could not be loaded.");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("FAILED TestCertificateGeneration: " + ex.Message);
+                return false;
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(tempDir))
+                    {
+                        Directory.Delete(tempDir, true);
+                    }
+                }
+                catch { }
             }
         }
 
@@ -253,6 +374,7 @@ namespace SamOfficeAgent
         private ContextMenuStrip _contextMenu;
         private ToolStripMenuItem _statusItem;
         private ToolStripMenuItem _autoStartItem;
+        private Font _headerFont;
         private HttpServer _httpServer;
         private Mutex _mutex;
         private string _baseDir;
@@ -389,7 +511,7 @@ namespace SamOfficeAgent
             return CreateSelfSignedCertFallback();
         }
 
-        private static X509Certificate2 TryLoadPfx(string path)
+        internal static X509Certificate2 TryLoadPfx(string path)
         {
             string[] passwords = new string[] { "testpass123", "", "localhost" };
             foreach (string pass in passwords)
@@ -410,19 +532,20 @@ namespace SamOfficeAgent
             }
         }
 
-        private X509Certificate2 CreateSelfSignedCertFallback()
+        internal static bool GenerateSelfSignedCertificate(string pfxPath, string password)
         {
-            string certDir = Path.Combine(_baseDir, "certs");
-            if (!Directory.Exists(certDir))
+            string certDir = Path.GetDirectoryName(pfxPath);
+            if (!string.IsNullOrEmpty(certDir) && !Directory.Exists(certDir))
             {
                 Directory.CreateDirectory(certDir);
             }
-            string pfxPath = Path.Combine(certDir, "localhost.pfx");
+
             string script = string.Format(
                 "$cert = New-SelfSignedCertificate -DnsName '127.0.0.1','localhost' -CertStoreLocation 'Cert:\\CurrentUser\\My' -NotAfter (Get-Date).AddYears(1); " +
-                "$pwd = ConvertTo-SecureString 'testpass123' -Force -AsPlainText; " +
-                "Export-PfxCertificate -Cert $cert -FilePath '{0}' -Password $pwd | Out-Null; " +
-                "Remove-Item \"Cert:\\CurrentUser\\My\\$($cert.Thumbprint)\" -Force -ErrorAction SilentlyContinue",
+                "$pwd = ConvertTo-SecureString '{0}' -Force -AsPlainText; " +
+                "Export-PfxCertificate -Cert $cert -FilePath '{1}' -Password $pwd | Out-Null; " +
+                "Remove-Item ('Cert:\\CurrentUser\\My\\' + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue",
+                password.Replace("'", "''"),
                 pfxPath.Replace("'", "''")
             );
 
@@ -433,12 +556,19 @@ namespace SamOfficeAgent
                 psi.UseShellExecute = false;
                 using (Process proc = Process.Start(psi))
                 {
-                    proc.WaitForExit(10000);
+                    proc.WaitForExit(15000);
                 }
             }
             catch { }
 
-            if (File.Exists(pfxPath))
+            return File.Exists(pfxPath);
+        }
+
+        private X509Certificate2 CreateSelfSignedCertFallback()
+        {
+            string certDir = Path.Combine(_baseDir, "certs");
+            string pfxPath = Path.Combine(certDir, "localhost.pfx");
+            if (GenerateSelfSignedCertificate(pfxPath, "testpass123"))
             {
                 return TryLoadPfx(pfxPath);
             }
@@ -453,7 +583,8 @@ namespace SamOfficeAgent
             // 1. Header: "Sam Office Agent - v1.0" (disabled font-bold)
             ToolStripMenuItem headerItem = new ToolStripMenuItem("Sam Office Agent - v1.0");
             headerItem.Enabled = false;
-            headerItem.Font = new Font(headerItem.Font, FontStyle.Bold);
+            _headerFont = new Font(headerItem.Font, FontStyle.Bold);
+            headerItem.Font = _headerFont;
             _contextMenu.Items.Add(headerItem);
 
             // 2. Status: "🟢 Server Aktif (Port 5173)"
@@ -595,6 +726,18 @@ namespace SamOfficeAgent
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
                 _notifyIcon = null;
+            }
+
+            if (_headerFont != null)
+            {
+                _headerFont.Dispose();
+                _headerFont = null;
+            }
+
+            if (_contextMenu != null)
+            {
+                _contextMenu.Dispose();
+                _contextMenu = null;
             }
 
             if (_httpServer != null)
