@@ -11,3 +11,16 @@ body {
   padding: 0;
   overflow-x: hidden;
 }
+
+/* Ensure text selection works properly inside WebView2 and Office Add-in taskpanes */
+.select-text,
+.chat-selectable {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+::selection {
+  background-color: #3b82f6;
+  color: #ffffff;
+}

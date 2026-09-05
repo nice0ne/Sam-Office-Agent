@@ -329,10 +329,11 @@ describe('MessageBubble Component', () => {
 
   it('passes onApplyToolCall callback to embedded ActionCard', () => {
     const onApplyToolCall = vi.fn();
-    const vdom = MessageBubble({
+    const harness = createHookHarness(MessageBubble, {
       message: assistantMessage,
       onApplyToolCall,
-    }) as React.ReactElement;
+    });
+    const vdom = harness.render();
 
     // ActionCard element inside MessageBubble tree
     const actionCard = findElement(vdom, el => el.type === ActionCard);
@@ -351,6 +352,26 @@ describe('MessageBubble Component', () => {
     expect(button).toBeDefined();
     button.props.onClick();
     expect(onApplyToolCall).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders copy button and copies message content to clipboard on click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText,
+      },
+    });
+
+    const harness = createHookHarness(MessageBubble, {
+      message: userMessage,
+      onApplyToolCall: () => {},
+    });
+    const vdom = harness.render();
+    const copyButton = findElement(vdom, el => el.type === 'button' && (el.props['aria-label'] === 'Salin pesan' || el.props.title === 'Salin pesan'));
+    expect(copyButton).toBeDefined();
+
+    await copyButton.props.onClick();
+    expect(writeText).toHaveBeenCalledWith(userMessage.content);
   });
 });
 
@@ -552,7 +573,8 @@ describe('ChatContainer Component', () => {
     expect(assistantBubble.props.onApplyToolCall).toBe(onApplyToolCall);
 
     // Render the assistant bubble and simulate tool apply
-    const bubbleVdom = MessageBubble(assistantBubble.props) as React.ReactElement;
+    const bubbleHarness = createHookHarness(MessageBubble, assistantBubble.props);
+    const bubbleVdom = bubbleHarness.render();
     const actionCard = findElement(bubbleVdom, el => el.type === ActionCard);
     expect(actionCard).toBeDefined();
 

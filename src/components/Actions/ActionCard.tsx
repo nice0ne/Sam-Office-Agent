@@ -29,7 +29,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
         )}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 font-mono text-[11px] text-gray-700 dark:text-gray-300 max-h-24 overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 font-mono text-[11px] text-gray-700 dark:text-gray-300 max-h-24 overflow-y-auto select-text">
         {toolCall.name === 'write_cells' && (
           <div>
             <span className="text-blue-500">Range:</span> {args.range}
