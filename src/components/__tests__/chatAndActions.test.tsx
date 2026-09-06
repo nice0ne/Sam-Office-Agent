@@ -411,7 +411,7 @@ describe('InputBar Component', () => {
     // Initial render
     let vdom = harness.render();
     const inputEl = findElement(vdom, el => el.type === 'input');
-    const buttonEl = findElement(vdom, el => el.type === 'button');
+    const buttonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(buttonEl.props.disabled).toBe(true);
 
     // Simulate typing
@@ -420,7 +420,7 @@ describe('InputBar Component', () => {
     // Re-render after state update
     vdom = harness.render();
     const updatedInputEl = findElement(vdom, el => el.type === 'input');
-    const updatedButtonEl = findElement(vdom, el => el.type === 'button');
+    const updatedButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(updatedInputEl.props.value).toBe('  Buatkan chart dari kolom A ke D  ');
     expect(updatedButtonEl.props.disabled).toBe(false);
 
@@ -434,7 +434,7 @@ describe('InputBar Component', () => {
     // Re-render to confirm input is reset to empty string
     vdom = harness.render();
     const resetInputEl = findElement(vdom, el => el.type === 'input');
-    const resetButtonEl = findElement(vdom, el => el.type === 'button');
+    const resetButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(resetInputEl.props.value).toBe('');
     expect(resetButtonEl.props.disabled).toBe(true);
   });
@@ -487,7 +487,7 @@ describe('InputBar Component', () => {
 
     inputEl.props.onChange({ target: { value: '     ' } });
     vdom = harness.render();
-    const updatedButtonEl = findElement(vdom, el => el.type === 'button');
+    const updatedButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     const updatedInputEl = findElement(vdom, el => el.type === 'input');
 
     expect(updatedButtonEl.props.disabled).toBe(true);
@@ -521,6 +521,79 @@ describe('InputBar Component', () => {
 
     updatedInputEl.props.onKeyDown({ key: 'Enter', shiftKey: false, preventDefault: vi.fn() });
     expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('renders microphone button and language toggle', () => {
+    (globalThis as any).webkitSpeechRecognition = class MockSpeech {
+      start = vi.fn();
+      stop = vi.fn();
+    };
+    const onSendMessage = vi.fn();
+    const harness = createHookHarness(InputBar, { onSendMessage });
+    const vdom = harness.render();
+
+    const micButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Perintah Suara');
+    expect(micButton).toBeDefined();
+
+    const langButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Pilihan Bahasa Suara');
+    expect(langButton).toBeDefined();
+    expect(langButton.props.children).toContain('ID');
+  });
+
+  it('toggles voice recognition and language in InputBar', () => {
+    let mockInstance: any = null;
+    class MockSpeech {
+      continuous = false;
+      interimResults = false;
+      lang = 'id-ID';
+      onstart: any = null;
+      onend: any = null;
+      onresult: any = null;
+      constructor() {
+        mockInstance = this;
+      }
+      start = vi.fn().mockImplementation(() => {
+        if (this.onstart) this.onstart();
+      });
+      stop = vi.fn().mockImplementation(() => {
+        if (this.onend) this.onend();
+      });
+    }
+    (globalThis as any).webkitSpeechRecognition = MockSpeech;
+
+    const onSendMessage = vi.fn();
+    const harness = createHookHarness(InputBar, { onSendMessage });
+    let vdom = harness.render();
+
+    // Click language toggle
+    const langButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Pilihan Bahasa Suara');
+    langButton.props.onClick();
+    vdom = harness.render();
+    const updatedLangButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Pilihan Bahasa Suara');
+    expect(updatedLangButton.props.children).toContain('EN');
+
+    // Click mic button to start
+    const micButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Perintah Suara');
+    micButton.props.onClick();
+    vdom = harness.render();
+
+    expect(mockInstance.start).toHaveBeenCalled();
+
+    // Send speech recognition result
+    mockInstance.onresult({
+      resultIndex: 0,
+      results: [
+        {
+          0: { transcript: 'buatkan grafik baris' },
+          isFinal: true,
+          length: 1,
+        },
+      ],
+    });
+    vdom = harness.render();
+
+    const inputEl = findElement(vdom, el => el.type === 'input');
+    expect(inputEl.props.value).toContain('buatkan grafik baris');
   });
 });
 
