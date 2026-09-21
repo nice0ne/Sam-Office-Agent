@@ -131,7 +131,7 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
             range: { type: 'string', description: 'Range sel data yang ingin dibersihkan (opsional, default: seluruh usedRange aktif)' },
             removeDuplicates: { type: 'boolean', description: 'Jika true, hapus baris duplikat yang identik' },
             trimWhitespace: { type: 'boolean', description: 'Jika true, bersihkan spasi ekstra di awal dan akhir teks sel' },
-            fillEmptyValues: { type: ['string', 'number'], description: 'Nilai pengganti untuk sel yang kosong (misal: 0 atau "-")' },
+            fillEmptyValues: { type: 'string', description: 'Nilai pengganti untuk sel yang kosong (misal: 0 atau "-")' },
           },
         },
       },

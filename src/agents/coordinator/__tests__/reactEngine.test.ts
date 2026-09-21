@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { ReActExecutionEngine, ReActCallbacks } from '../reactEngine';
 import { ILLMProvider } from '../../../services/llm/types';
 import { IAgent } from '../../types';

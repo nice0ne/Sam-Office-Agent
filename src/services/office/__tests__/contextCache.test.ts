@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DocumentContextCache, documentContextCache } from '../contextCache';
 import { AgentContext } from '../../../agents/types';
-import { HostType } from '../../../types';
 
 describe('DocumentContextCache', () => {
   let cache: DocumentContextCache;
