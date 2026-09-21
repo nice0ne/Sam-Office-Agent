@@ -141,6 +141,17 @@ namespace SamOfficeAgent
                     Application.Run(context);
                 }
             }
+            catch (Exception ex)
+            {
+                try
+                {
+                    File.WriteAllText(
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log"),
+                        ex.ToString()
+                    );
+                }
+                catch { }
+            }
             finally
             {
                 ReleaseMutex();
@@ -445,6 +456,11 @@ namespace SamOfficeAgent
             }
             catch (Exception ex)
             {
+                try
+                {
+                    File.WriteAllText(Path.Combine(_baseDir, "server_init.log"), ex.ToString());
+                }
+                catch { }
                 MessageBox.Show(
                     string.Format("Peringatan: Gagal menjalankan server HTTPS pada port 5173.\n{0}", ex.Message),
                     "Sam Office Agent",
@@ -488,7 +504,9 @@ namespace SamOfficeAgent
             string[] pfxCandidates = new string[]
             {
                 Path.Combine(_baseDir, "certs", "localhost.pfx"),
+                Path.Combine(_baseDir, "..", "certs", "localhost.pfx"),
                 Path.Combine(_baseDir, "localhost.pfx"),
+                Path.Combine(_baseDir, "..", "localhost.pfx"),
                 Path.Combine(_baseDir, "bin", "test-server.pfx"),
                 Path.Combine(_baseDir, "test-server.pfx"),
                 Path.Combine(_baseDir, "..", "bin", "test-server.pfx"),

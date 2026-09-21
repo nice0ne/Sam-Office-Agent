@@ -139,6 +139,65 @@ describe('OpenAICompatibleProvider', () => {
     expect(result.message).toContain('Error koneksi: Network offline');
   });
 
+  it('handles non-standard SSE body and extracts reasoning in testConnection', async () => {
+    const openai = new OpenAICompatibleProvider('openai-compatible', 'LAN Model', 'http://172.20.34.104:20127/v1');
+    const rawSseBody = '{"id":"chatcmpl-97","choices":[{"message":{"role":"assistant","content":"","reasoning":"LAN model reasoning preview"}}]}\ndata: [DONE]\n';
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => rawSseBody,
+    } as any);
+
+    const result = await openai.testConnection({
+      id: 'openai-compatible',
+      name: 'LAN Model',
+      apiKey: 'ict-key',
+      selectedModel: 'qwen-3.8-27b',
+      baseUrl: 'http://172.20.34.104:20127/v1',
+      enabled: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('LAN model reasoning preview');
+  });
+
+  it('streams delta.reasoning tokens when content is empty', async () => {
+    const provider = new OpenAICompatibleProvider('openai-compatible', 'Qwen', 'http://172.20.34.104:20127/v1');
+    const sseChunks = [
+      'data: {"choices":[{"delta":{"content":"","reasoning":"Thinking step 1..."}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"Answer ready"}}]}\n\n',
+      'data: [DONE]\n\n',
+    ];
+
+    const encoder = new TextEncoder();
+    let chunkIndex = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (chunkIndex < sseChunks.length) {
+          controller.enqueue(encoder.encode(sseChunks[chunkIndex++]));
+        } else {
+          controller.close();
+        }
+      },
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: stream,
+    } as any);
+
+    const deltas: string[] = [];
+    for await (const event of provider.sendMessage(
+      { messages: [{ id: '1', role: 'user', content: 'Hi', timestamp: 123 }] },
+      { id: 'openai-compatible', name: 'Qwen', apiKey: 'test', selectedModel: 'qwen-3.8-27b', enabled: true }
+    )) {
+      if (event.type === 'content_delta' && event.delta) {
+        deltas.push(event.delta);
+      }
+    }
+
+    expect(deltas).toEqual(['Thinking step 1...', 'Answer ready']);
+  });
+
   it('streams content_delta and tool_call events from SSE', async () => {
     const openrouter = new OpenAICompatibleProvider('openrouter', 'OpenRouter', 'https://openrouter.ai/api/v1');
 

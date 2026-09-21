@@ -466,7 +466,9 @@ namespace SamOfficeAgent
             try
             {
                 ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+                ServicePointManager.Expect100Continue = false;
                 HttpWebRequest proxyReq = (HttpWebRequest)WebRequest.Create(targetUrl);
+                proxyReq.Proxy = null;
                 proxyReq.Method = method;
                 proxyReq.ContentType = contentTypeHeader;
                 proxyReq.Timeout = 60000;
@@ -481,25 +483,26 @@ namespace SamOfficeAgent
                 if ((method == "POST" || method == "PUT") && contentLength > 0)
                 {
                     proxyReq.ContentLength = contentLength;
-                    int bodyStartIndex = headerEndIndex + 4; // after \r\n\r\n
+                    int bodyStartIndex = headerEndIndex; // headerEndIndex returned by IndexOfDoubleNewline is already after double newline
                     int bytesAlreadyRead = allBytes.Length - bodyStartIndex;
 
                     using (Stream reqStream = proxyReq.GetRequestStream())
                     {
+                        int remaining = contentLength;
                         if (bytesAlreadyRead > 0)
                         {
-                            int toWrite = Math.Min(bytesAlreadyRead, contentLength);
+                            int toWrite = Math.Min(bytesAlreadyRead, remaining);
                             reqStream.Write(allBytes, bodyStartIndex, toWrite);
-                            contentLength -= toWrite;
+                            remaining -= toWrite;
                         }
 
                         byte[] buffer = new byte[4096];
-                        while (contentLength > 0)
+                        while (remaining > 0)
                         {
-                            int read = stream.Read(buffer, 0, Math.Min(buffer.Length, contentLength));
+                            int read = stream.Read(buffer, 0, Math.Min(buffer.Length, remaining));
                             if (read <= 0) break;
                             reqStream.Write(buffer, 0, read);
-                            contentLength -= read;
+                            remaining -= read;
                         }
                     }
                 }
@@ -552,6 +555,7 @@ namespace SamOfficeAgent
                     while ((read = resStream.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         stream.Write(buffer, 0, read);
+                        stream.Flush();
                     }
                 }
             }

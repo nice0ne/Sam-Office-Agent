@@ -66,7 +66,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
       }
     }
 
-    const isReasoning = /^(o1|o3|deepseek-r1)/i.test(config.selectedModel);
+    const isReasoning = /^(o1|o3|deepseek-r1|qwen.*27b|qwen.*reasoning)/i.test(config.selectedModel);
     const body: Record<string, any> = {
       model: config.selectedModel || 'gpt-4o-mini',
       messages,
@@ -155,14 +155,21 @@ export class OpenAICompatibleProvider implements ILLMProvider {
 
         for (const line of lines) {
           const clean = line.trim();
-          if (!clean || !clean.startsWith('data: ')) continue;
+          if (!clean) continue;
           if (clean === 'data: [DONE]') continue;
 
           try {
-            const parsed = JSON.parse(clean.slice(6));
-            const delta = parsed.choices?.[0]?.delta;
-            if (delta?.content) {
-              yield { type: 'content_delta', delta: delta.content };
+            const jsonStr = clean.startsWith('data: ') ? clean.slice(6) : clean;
+            const parsed = JSON.parse(jsonStr);
+            const choice = parsed.choices?.[0];
+            const delta = choice?.delta;
+            const content = delta?.content || choice?.message?.content;
+            const reasoning = delta?.reasoning_content || delta?.reasoning || choice?.message?.reasoning;
+
+            if (content) {
+              yield { type: 'content_delta', delta: content };
+            } else if (reasoning) {
+              yield { type: 'content_delta', delta: reasoning };
             }
 
             if (delta?.tool_calls) {
@@ -234,7 +241,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
         headers['X-Title'] = 'Sam Office Agent';
       }
 
-      const isReasoning = /^(o1|o3|deepseek-r1)/i.test(config.selectedModel);
+      const isReasoning = /^(o1|o3|deepseek-r1|qwen.*27b|qwen.*reasoning)/i.test(config.selectedModel);
       const testBody: Record<string, any> = {
         model: config.selectedModel || 'gpt-4o-mini',
         messages: [{ role: 'user', content: 'Ping' }],
@@ -270,9 +277,30 @@ export class OpenAICompatibleProvider implements ILLMProvider {
       }
 
       if (res.ok) {
-        const json = typeof res.json === 'function' ? await res.json().catch(() => null) : null;
-        const reply = json?.choices?.[0]?.message?.content?.trim();
-        const detail = reply ? ` (Balasan model: "${reply.slice(0, 30)}")` : '';
+        const rawText = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+        let json: any = null;
+        if (rawText) {
+          try {
+            json = JSON.parse(rawText);
+          } catch {
+            // Handle server responses with trailing data: [DONE] or non-standard SSE wrappers
+            const cleanLine = rawText
+              .split('\n')
+              .map(l => l.trim().replace(/^data:\s*/, ''))
+              .find(l => l.startsWith('{') && l.endsWith('}'));
+            if (cleanLine) {
+              try {
+                json = JSON.parse(cleanLine);
+              } catch {}
+            }
+          }
+        } else if (typeof res.json === 'function') {
+          json = await res.json().catch(() => null);
+        }
+
+        const choice = json?.choices?.[0];
+        const reply = (choice?.message?.content || choice?.message?.reasoning || choice?.delta?.content || choice?.delta?.reasoning || '').trim();
+        const detail = reply ? ` (Balasan model: "${reply.slice(0, 40)}")` : '';
         const targetName = config.name || this.name;
         return {
           success: true,
@@ -300,7 +328,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
       return {
         success: false,
         message: isCorsOrOffline
-          ? `Error jaringan / CORS (${baseUrl}): Pastikan server aktif dan mengizinkan CORS.`
+          ? `Error jaringan / CORS (${baseUrl}): Pastikan server aktif dan server lokal Sam Office Agent (https://localhost:5173) berjalan.`
           : `Error koneksi: ${e.message}`,
       };
     }

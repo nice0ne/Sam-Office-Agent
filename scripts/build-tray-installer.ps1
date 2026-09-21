@@ -218,6 +218,13 @@ if (($LASTEXITCODE -ne 0) -or (!(Test-Path $outExe))) {
 }
 Write-Host "  -> SamTrayServer.exe compiled successfully: $outExe" -ForegroundColor Green
 
+# Ensure bin/certs exists and has certificates for direct execution from bin/
+$binCertsDir = Join-Path $binDir "certs"
+if (!(Test-Path $binCertsDir)) {
+    New-Item -ItemType Directory -Path $binCertsDir -Force | Out-Null
+}
+Copy-Item -Path "$certsDir\*" -Destination $binCertsDir -Recurse -Force
+
 # 4. Stage distribution directory dist-release/
 Write-Host "`n[4/5] Staging distribution files into dist-release/..." -ForegroundColor Cyan
 $distReleaseDir = Join-Path $projectRoot "dist-release"
