@@ -20,7 +20,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-2 select-text">
+    <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2 select-text">
       {messages.map(m => (
         <MessageBubble
           key={m.id}

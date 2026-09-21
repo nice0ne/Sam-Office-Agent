@@ -94,7 +94,7 @@ export const QuickActionPresets: React.FC<QuickActionPresetsProps> = ({
   return (
     <div
       aria-label="Quick Action Presets"
-      className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-1 scrollbar-none no-scrollbar text-xs"
+      className="flex items-center gap-1 overflow-x-auto pb-1 mb-1 scrollbar-none no-scrollbar"
     >
       {presets.map(preset => (
         <button
@@ -102,7 +102,7 @@ export const QuickActionPresets: React.FC<QuickActionPresetsProps> = ({
           type="button"
           disabled={Boolean(disabled)}
           onClick={() => onSelectPreset(preset.prompt)}
-          className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-750 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 text-gray-700 dark:text-gray-300 transition-colors border border-gray-200/80 dark:border-gray-700/80 shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed select-none shadow-2xs"
+          className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100/90 dark:bg-gray-750/90 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/40 dark:hover:text-blue-400 text-gray-700 dark:text-gray-300 transition-all border border-gray-200/70 dark:border-gray-700/60 shrink-0 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed select-none shadow-2xs hover:shadow-xs active:scale-[0.98]"
         >
           {preset.label}
         </button>

@@ -14,22 +14,22 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
   const args = toolCall.arguments || {};
 
   return (
-    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-xs space-y-2">
-      <div className="flex items-center justify-between font-semibold text-gray-800 dark:text-gray-200">
+    <div className="mt-1.5 p-2 bg-gray-50/95 dark:bg-gray-900/95 border border-gray-200/80 dark:border-gray-700/80 rounded-lg text-xs space-y-1.5 shadow-2xs">
+      <div className="flex items-center justify-between font-semibold text-gray-800 dark:text-gray-200 text-[11px]">
         <span className="capitalize">{toolCall.name.replace(/_/g, ' ')}</span>
         {isApplied && (
-          <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Diterapkan
+          <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium text-[10px]">
+            <CheckCircle2 className="w-3 h-3" /> Diterapkan
           </span>
         )}
         {isFailed && (
-          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium">
-            <AlertCircle className="w-3.5 h-3.5" /> Gagal
+          <span className="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium text-[10px]">
+            <AlertCircle className="w-3 h-3" /> Gagal
           </span>
         )}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 font-mono text-[11px] text-gray-700 dark:text-gray-300 max-h-24 overflow-y-auto select-text">
+      <div className="bg-white dark:bg-gray-800 p-1.5 rounded border border-gray-100 dark:border-gray-750 font-mono text-[10px] text-gray-700 dark:text-gray-300 max-h-24 overflow-y-auto select-text leading-tight">
         {toolCall.name === 'write_cells' && (
           <div>
             <span className="text-blue-500">Range:</span> {args.range}
@@ -140,11 +140,11 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
         <button
           onClick={() => onApply(toolCall)}
           disabled={isExecuting}
-          className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium flex items-center justify-center gap-1.5 transition disabled:opacity-50"
+          className="w-full py-1 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium flex items-center justify-center gap-1.5 transition disabled:opacity-50"
         >
           {isExecuting ? (toolCall.name.startsWith('read_') ? 'Membaca...' : 'Menerapkan...') : (
             <>
-              <Play className="w-3 h-3 fill-current" /> {toolCall.name.startsWith('read_') ? 'Baca Data Sekarang' : 'Terapkan ke Dokumen'}
+              <Play className="w-2.5 h-2.5 fill-current" /> {toolCall.name.startsWith('read_') ? 'Baca Data Sekarang' : 'Terapkan ke Dokumen'}
             </>
           )}
         </button>

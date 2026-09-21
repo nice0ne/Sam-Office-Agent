@@ -86,14 +86,14 @@ export const InputBar: React.FC<InputBarProps> = ({
     : placeholder;
 
   return (
-    <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 transition-colors">
+    <div className="px-3 pt-1.5 pb-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border-t border-gray-200 dark:border-gray-700 transition-colors shrink-0">
       <QuickActionPresets
         host={host}
         onSelectPreset={prompt => onSendMessage(prompt)}
         disabled={disabled}
       />
       {speechError && (
-        <div className="mb-2 px-2.5 py-1 text-xs rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center justify-between">
+        <div className="mb-1.5 px-2 py-0.5 text-[11px] rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center justify-between">
           <span>
             {speechError === 'not-allowed'
               ? 'Izin mikrofon ditolak. Aktifkan izin mikrofon di browser Anda.'
@@ -103,8 +103,8 @@ export const InputBar: React.FC<InputBarProps> = ({
           </span>
         </div>
       )}
-      <div className="flex items-end gap-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm transition-all">
-        <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mb-1.5" />
+      <div className="flex items-end gap-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1 focus-within:ring-1.5 focus-within:ring-blue-500 shadow-2xs transition-all">
+        <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0 mb-1" />
         <textarea
           ref={textareaRef}
           rows={1}
@@ -113,7 +113,7 @@ export const InputBar: React.FC<InputBarProps> = ({
           onKeyDown={handleKeyDown}
           disabled={Boolean(disabled)}
           placeholder={currentPlaceholder}
-          className="w-full bg-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none disabled:opacity-60 resize-none min-h-[24px] max-h-32 py-1 leading-relaxed"
+          className="w-full bg-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none disabled:opacity-60 resize-none min-h-[22px] max-h-28 py-0.5 leading-normal"
         />
 
         {/* Language selector toggle */}
@@ -123,7 +123,7 @@ export const InputBar: React.FC<InputBarProps> = ({
           disabled={Boolean(disabled)}
           aria-label="Pilihan Bahasa Suara"
           title={`Ganti bahasa perintah suara (${language === 'id-ID' ? 'Bahasa Indonesia' : 'English'})`}
-          className="px-1.5 py-0.5 mb-0.5 text-[10px] font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-40 transition shrink-0"
+          className="px-1 py-0.5 mb-0.5 text-[9px] font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-40 transition shrink-0"
         >
           {language === 'id-ID' ? 'ID' : 'EN'}
         </button>
@@ -141,16 +141,16 @@ export const InputBar: React.FC<InputBarProps> = ({
               ? 'Hentikan merekam suara'
               : 'Mulai perintah suara'
           }
-          className={`p-1.5 mb-0.5 rounded-lg transition shrink-0 ${
+          className={`p-1 mb-0.5 rounded-md transition shrink-0 ${
             isListening
               ? 'bg-red-500 text-white animate-pulse shadow-sm shadow-red-500/50'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40'
           }`}
         >
           {isListening ? (
-            <MicOff className="w-4 h-4" />
+            <MicOff className="w-3.5 h-3.5" />
           ) : (
-            <Mic className="w-4 h-4" />
+            <Mic className="w-3.5 h-3.5" />
           )}
         </button>
 
@@ -160,12 +160,12 @@ export const InputBar: React.FC<InputBarProps> = ({
           onClick={handleSend}
           disabled={Boolean(!input.trim() || disabled)}
           aria-label="Kirim Pesan"
-          className="p-1.5 mb-0.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
+          className="p-1 mb-0.5 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
         >
           {disabled ? (
-            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
           ) : (
-            <Send className="w-4 h-4" />
+            <Send className="w-3.5 h-3.5" />
           )}
         </button>
       </div>

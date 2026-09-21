@@ -35,13 +35,13 @@ export const Header: React.FC<HeaderProps> = ({
   const getHostIcon = () => {
     switch (host) {
       case 'Excel':
-        return <FileSpreadsheet className="w-5 h-5 text-office-excel" />;
+        return <FileSpreadsheet className="w-4 h-4 text-office-excel" />;
       case 'Word':
-        return <FileText className="w-5 h-5 text-office-word" />;
+        return <FileText className="w-4 h-4 text-office-word" />;
       case 'PowerPoint':
-        return <Presentation className="w-5 h-5 text-office-ppt" />;
+        return <Presentation className="w-4 h-4 text-office-ppt" />;
       default:
-        return <Zap className="w-5 h-5 text-office-agent" />;
+        return <Zap className="w-4 h-4 text-office-agent" />;
     }
   };
 
@@ -59,40 +59,46 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
-      <div className="flex items-center space-x-2.5">
-        <div className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+    <header className="flex items-center justify-between px-3 py-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xs border-b border-gray-200/80 dark:border-gray-700/80 shadow-2xs transition-colors shrink-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="p-1 rounded-md bg-gray-50 dark:bg-gray-700/60 border border-gray-200/60 dark:border-gray-700 shrink-0">
           {getHostIcon()}
         </div>
-        <div>
-          <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <h1 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1 shrink-0">
             Sam Office
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-medium ${getHostBadgeStyle()}`}>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold tracking-tight ${getHostBadgeStyle()}`}>
               {host}
             </span>
           </h1>
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 capitalize">{activeProviderId}</p>
+          <span className="text-gray-300 dark:text-gray-600 text-xs select-none">·</span>
+          <span
+            className="text-[10px] text-gray-500 dark:text-gray-400 font-medium capitalize truncate max-w-[85px]"
+            title={activeProviderId}
+          >
+            {activeProviderId}
+          </span>
         </div>
       </div>
 
-      <div className="flex items-center space-x-1.5">
+      <div className="flex items-center gap-1 shrink-0">
         {/* Copilot vs Autopilot Toggle */}
         <button
           onClick={onToggleMode}
           title={executionMode === 'copilot' ? 'Mode Copilot (Preview dulu)' : 'Mode Autopilot (Langsung eksekusi)'}
-          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium transition-all shadow-sm ${
+          className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-all shadow-2xs select-none ${
             executionMode === 'autopilot'
               ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-200/60 dark:border-gray-600/60'
           }`}
         >
           {executionMode === 'autopilot' ? (
             <>
-              <Play className="w-3 h-3 fill-current" /> Auto
+              <Play className="w-2.5 h-2.5 fill-current" /> Auto
             </>
           ) : (
             <>
-              <Zap className="w-3 h-3" /> Copilot
+              <Zap className="w-2.5 h-2.5" /> Copilot
             </>
           )}
         </button>
@@ -101,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
         {onToggleTheme && (
           <button
             onClick={onToggleTheme}
-            className="p-1.5 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            className="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             title={
               themeMode === 'dark'
                 ? 'Tema: Gelap (Klik untuk mode Otomatis)'
@@ -112,11 +118,11 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Ganti Tema"
           >
             {themeMode === 'dark' ? (
-              <Moon className="w-4 h-4 text-indigo-400" />
+              <Moon className="w-3.5 h-3.5 text-indigo-400" />
             ) : themeMode === 'light' ? (
-              <Sun className="w-4 h-4 text-amber-500" />
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
             ) : (
-              <Monitor className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <Monitor className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
             )}
           </button>
         )}
@@ -124,10 +130,10 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Settings Button */}
         <button
           onClick={onOpenSettings}
-          className="p-1.5 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+          className="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           title="Pengaturan BYOK API Key"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-3.5 h-3.5" />
         </button>
       </div>
     </header>
