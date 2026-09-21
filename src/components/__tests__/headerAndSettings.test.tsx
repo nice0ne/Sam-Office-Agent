@@ -463,4 +463,31 @@ describe('SettingsModal Component', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('allows switching to openai-compatible tab and renders quick presets', () => {
+    const harness = createHookHarness(SettingsModal, {
+      isOpen: true,
+      onClose: () => {},
+      onSaved: () => {},
+    });
+
+    let vdom = harness.render();
+    const modalContainer = vdom.props.children;
+    const tabsContainer = modalContainer.props.children[1];
+    const tabButtons = tabsContainer.props.children;
+
+    // Find the openai-compatible tab
+    const compatibleTab = tabButtons.find(
+      (btn: any) => btn.props.children === 'Compatible'
+    );
+    expect(compatibleTab).toBeDefined();
+    compatibleTab.props.onClick();
+
+    vdom = harness.render();
+    const html = renderToString(vdom);
+    expect(html).toContain('Preset Cepat');
+    expect(html).toContain('Groq');
+    expect(html).toContain('DeepSeek');
+    expect(html).toContain('LM Studio');
+  });
 });

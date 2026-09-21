@@ -12,6 +12,7 @@ const providers: Record<ProviderId, ILLMProvider> = {
   glm: new GLMProvider(),
   openrouter: new OpenAICompatibleProvider('openrouter', 'OpenRouter', 'https://openrouter.ai/api/v1'),
   ollama: new OpenAICompatibleProvider('ollama', 'Local Ollama', 'http://localhost:11434/v1'),
+  'openai-compatible': new OpenAICompatibleProvider('openai-compatible', 'OpenAI Compatible', 'https://api.openai.com/v1'),
 };
 
 export function getLLMProvider(id: ProviderId): ILLMProvider {

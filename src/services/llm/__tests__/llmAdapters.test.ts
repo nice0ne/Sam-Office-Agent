@@ -14,6 +14,7 @@ describe('LLM Provider Factory', () => {
     expect(getLLMProvider('glm').id).toBe('glm');
     expect(getLLMProvider('openrouter').id).toBe('openrouter');
     expect(getLLMProvider('ollama').id).toBe('ollama');
+    expect(getLLMProvider('openai-compatible').id).toBe('openai-compatible');
   });
 
   it('falls back to gemini provider for unknown provider id', () => {
@@ -282,6 +283,65 @@ describe('OpenAICompatibleProvider', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toEqual({ type: 'error', error: 'API Key OpenAI belum diisi.' });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('normalizes custom baseUrl by auto-appending /v1 and allows empty API key for openai-compatible', async () => {
+    const custom = new OpenAICompatibleProvider('openai-compatible', 'OpenAI Compatible', 'https://api.openai.com/v1');
+    let capturedUrl = '';
+    let capturedBody: any = null;
+    let capturedHeaders: any = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (url, options) => {
+      capturedUrl = url;
+      capturedHeaders = options.headers;
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'Pong!' } }] }),
+      } as any;
+    });
+
+    const result = await custom.testConnection({
+      id: 'openai-compatible',
+      name: 'Custom LM Studio',
+      apiKey: '', // Empty key on local server
+      baseUrl: 'http://localhost:1234', // Host without /v1
+      selectedModel: 'qwen2.5-coder',
+      enabled: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Koneksi berhasil ke Custom LM Studio');
+    expect(result.message).toContain('Pong!');
+    expect(capturedUrl).toBe('http://localhost:1234/v1/chat/completions');
+    expect(capturedHeaders.Authorization).toBeUndefined();
+    expect(capturedBody.model).toBe('qwen2.5-coder');
+    expect(capturedBody.max_tokens).toBe(5);
+  });
+
+  it('uses max_completion_tokens for reasoning models (o1, o3, deepseek-r1) and omits temperature', async () => {
+    const custom = new OpenAICompatibleProvider('openai-compatible', 'OpenAI Compatible', 'https://api.openai.com/v1');
+    let capturedBody: any = null;
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'Thinking complete.' } }] }),
+      } as any;
+    });
+
+    await custom.testConnection({
+      id: 'openai-compatible',
+      name: 'OpenAI Compatible',
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.deepseek.com/v1',
+      selectedModel: 'deepseek-r1',
+      enabled: true,
+    });
+
+    expect(capturedBody.max_completion_tokens).toBe(10);
+    expect(capturedBody.max_tokens).toBeUndefined();
   });
 
   it('attaches OpenRouter specific headers during testConnection', async () => {

@@ -2,7 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { ProviderConfig, ProviderId } from '../../types';
 import { getSettings, saveSettings, setActiveProvider } from '../../services/storage/settingsStorage';
 import { testProviderConnection } from '../../services/llm/factory';
-import { X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+
+export const PROVIDER_LABELS: Record<ProviderId, string> = {
+  gemini: 'Gemini',
+  openai: 'OpenAI',
+  claude: 'Claude',
+  glm: 'GLM',
+  openrouter: 'OpenRouter',
+  ollama: 'Ollama',
+  'openai-compatible': 'Compatible',
+};
+
+export const OPENAI_COMPATIBLE_PRESETS = [
+  { name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { name: 'LM Studio (Local)', baseUrl: 'http://localhost:1234/v1', model: 'qwen2.5-coder-7b-instruct' },
+  { name: 'vLLM / LocalAI', baseUrl: 'http://localhost:8000/v1', model: 'default' },
+  { name: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest' },
+  { name: 'Together AI', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+];
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -74,6 +93,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     });
   };
 
+  const handleApplyPreset = (preset: { baseUrl: string; model: string }) => {
+    setSettings(prev => {
+      const existing = prev.providers[activeTab] || currentConfig;
+      return {
+        ...prev,
+        providers: {
+          ...prev.providers,
+          [activeTab]: {
+            ...existing,
+            baseUrl: preset.baseUrl,
+            selectedModel: preset.model,
+          },
+        },
+      };
+    });
+    setTestResult(null);
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -104,9 +141,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-sm w-full shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Pengaturan BYOK AI</h2>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Pengaturan BYOK AI</h2>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Bring Your Own Key — 100% Client-Side Privacy</p>
+          </div>
           <button onClick={onClose} aria-label="Tutup" className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
@@ -153,6 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               type="text"
               value={currentConfig.selectedModel}
               onChange={e => handleUpdateModel(e.target.value)}
+              placeholder="Contoh: gpt-4o, llama-3.3-70b-versatile, deepseek-chat..."
               className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -168,6 +209,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               placeholder="https://..."
               className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {activeTab === 'openai-compatible' && (
+              <div className="mt-2.5 p-2 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-100 dark:border-blue-900/50 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-800 dark:text-blue-300">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Preset Cepat (Base URL &amp; Model):</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {OPENAI_COMPATIBLE_PRESETS.map(p => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => handleApplyPreset(p)}
+                      className="text-[10px] px-2 py-0.5 rounded bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition font-medium"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {testResult && (
@@ -186,20 +247,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <span className="break-all">{testResult.message}</span>
             </div>
           )}
+
+          <div className="p-2 bg-gray-50 dark:bg-gray-900/40 rounded border border-gray-200 dark:border-gray-700/60 flex items-start gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+            <span>Kunci API Anda disimpan eksklusif di peramban lokal perangkat ini (zero-backend).</span>
+          </div>
         </div>
 
         <div className="p-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex justify-between gap-2">
           <button
             onClick={handleTest}
             disabled={testing}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center gap-1.5"
           >
             {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Test Koneksi
           </button>
           <button
             onClick={handleSaveAndApply}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            className="px-4 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
           >
             Simpan & Gunakan
           </button>

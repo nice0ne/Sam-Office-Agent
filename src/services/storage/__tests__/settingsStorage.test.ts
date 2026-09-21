@@ -22,6 +22,7 @@ describe('Settings Storage Service', () => {
     expect(settings.providers.glm).toBeDefined();
     expect(settings.providers.openrouter).toBeDefined();
     expect(settings.providers.ollama).toBeDefined();
+    expect(settings.providers['openai-compatible']).toBeDefined();
     expect(settings.activeProviderId).toBe('gemini');
     expect(settings.executionMode).toBe('copilot');
     expect(settings.theme).toBe('system');

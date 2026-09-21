@@ -4,7 +4,7 @@ export function isValidHost(host: string): host is HostType {
   return ['Excel', 'Word', 'PowerPoint', 'BrowserDev'].includes(host);
 }
 
-export type ProviderId = 'gemini' | 'openai' | 'claude' | 'glm' | 'openrouter' | 'ollama';
+export type ProviderId = 'gemini' | 'openai' | 'claude' | 'glm' | 'openrouter' | 'ollama' | 'openai-compatible';
 
 export interface ProviderConfig {
   id: ProviderId;

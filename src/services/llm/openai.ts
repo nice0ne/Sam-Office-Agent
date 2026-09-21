@@ -12,13 +12,29 @@ export class OpenAICompatibleProvider implements ILLMProvider {
     this.defaultBaseUrl = defaultBaseUrl;
   }
 
+  private normalizeBaseUrl(rawUrl?: string): string {
+    let url = (rawUrl || this.defaultBaseUrl).trim().replace(/\/+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    const path = url.replace(/^https?:\/\/[^/]+/, '');
+    if (!path || path === '') {
+      url = `${url}/v1`;
+    }
+    return url;
+  }
+
+  private isKeyRequired(): boolean {
+    return this.id === 'openai';
+  }
+
   async *sendMessage(req: ChatRequest, config: ProviderConfig): AsyncIterable<StreamEvent> {
-    if (!config.apiKey && this.id !== 'ollama') {
+    if (!config.apiKey && this.isKeyRequired()) {
       yield { type: 'error', error: `API Key ${this.name} belum diisi.` };
       return;
     }
 
-    const baseUrl = (config.baseUrl || this.defaultBaseUrl).replace(/\/+$/, '');
+    const baseUrl = this.normalizeBaseUrl(config.baseUrl);
     const url = `${baseUrl}/chat/completions`;
 
     const messages = [];
@@ -50,12 +66,15 @@ export class OpenAICompatibleProvider implements ILLMProvider {
       }
     }
 
+    const isReasoning = /^(o1|o3|deepseek-r1)/i.test(config.selectedModel);
     const body: Record<string, any> = {
-      model: config.selectedModel,
+      model: config.selectedModel || 'gpt-4o-mini',
       messages,
       stream: true,
-      temperature: req.temperature ?? 0.7,
     };
+    if (!isReasoning) {
+      body.temperature = req.temperature ?? 0.7;
+    }
 
     if (req.tools && req.tools.length > 0) {
       body.tools = req.tools.map(t => ({
@@ -71,8 +90,14 @@ export class OpenAICompatibleProvider implements ILLMProvider {
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
     };
+
+    const effectiveKey = config.apiKey?.trim();
+    if (effectiveKey) {
+      headers['Authorization'] = `Bearer ${effectiveKey}`;
+    } else if (this.id === 'ollama') {
+      headers['Authorization'] = 'Bearer ollama';
+    }
 
     if (this.id === 'openrouter') {
       headers['HTTP-Referer'] = 'https://github.com/Sam-Office-Agent';
@@ -169,39 +194,79 @@ export class OpenAICompatibleProvider implements ILLMProvider {
   }
 
   async testConnection(config: ProviderConfig): Promise<{ success: boolean; message: string }> {
-    if (!config.apiKey && this.id !== 'ollama') {
+    if (!config.apiKey?.trim() && this.isKeyRequired()) {
       return { success: false, message: 'API Key belum diisi.' };
     }
 
-    const baseUrl = (config.baseUrl || this.defaultBaseUrl).replace(/\/+$/, '');
+    const baseUrl = this.normalizeBaseUrl(config.baseUrl);
+    const url = `${baseUrl}/chat/completions`;
+
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
       };
+      if (config.apiKey?.trim()) {
+        headers['Authorization'] = `Bearer ${config.apiKey.trim()}`;
+      } else if (this.id === 'ollama') {
+        headers['Authorization'] = 'Bearer ollama';
+      }
 
       if (this.id === 'openrouter') {
         headers['HTTP-Referer'] = 'https://github.com/Sam-Office-Agent';
         headers['X-Title'] = 'Sam Office Agent';
       }
 
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const isReasoning = /^(o1|o3|deepseek-r1)/i.test(config.selectedModel);
+      const testBody: Record<string, any> = {
+        model: config.selectedModel || 'gpt-4o-mini',
+        messages: [{ role: 'user', content: 'Ping' }],
+      };
+      if (isReasoning) {
+        testBody.max_completion_tokens = 10;
+      } else {
+        testBody.max_tokens = 5;
+      }
+
+      const res = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: config.selectedModel,
-          messages: [{ role: 'user', content: 'Ping' }],
-          max_tokens: 5,
-        }),
+        body: JSON.stringify(testBody),
       });
 
       if (res.ok) {
-        return { success: true, message: `Koneksi berhasil ke ${this.name} (${config.selectedModel})!` };
+        const json = typeof res.json === 'function' ? await res.json().catch(() => null) : null;
+        const reply = json?.choices?.[0]?.message?.content?.trim();
+        const detail = reply ? ` (Balasan model: "${reply.slice(0, 30)}")` : '';
+        const targetName = config.name || this.name;
+        return {
+          success: true,
+          message: `Koneksi berhasil ke ${targetName} (${config.selectedModel || 'default'})${detail}!`,
+        };
       }
-      const err = await res.text();
-      return { success: false, message: `Gagal (HTTP ${res.status}): ${err}` };
+
+      const errText = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+      let friendlyError = `HTTP ${res.status}`;
+      if (res.status === 401) {
+        friendlyError = 'HTTP 401 (API Key salah atau tidak memiliki izin akses)';
+      } else if (res.status === 404) {
+        friendlyError = `HTTP 404 (Endpoint ${url} tidak ditemukan. Periksa Base URL)`;
+      } else if (res.status === 403) {
+        friendlyError = 'HTTP 403 (Akses ditolak atau saldo/kuota habis)';
+      } else if (res.status === 429) {
+        friendlyError = 'HTTP 429 (Rate limit terlampaui)';
+      }
+      return {
+        success: false,
+        message: `Gagal (HTTP ${res.status}): ${friendlyError}.${errText ? ` ${errText.slice(0, 150)}` : ''}`,
+      };
     } catch (e: any) {
-      return { success: false, message: `Error koneksi: ${e.message}` };
+      const isCorsOrOffline = e.name === 'TypeError' || e.message?.includes('fetch') || e.message?.includes('Failed');
+      return {
+        success: false,
+        message: isCorsOrOffline
+          ? `Error jaringan / CORS (${baseUrl}): Pastikan server aktif dan mengizinkan CORS.`
+          : `Error koneksi: ${e.message}`,
+      };
     }
   }
 }

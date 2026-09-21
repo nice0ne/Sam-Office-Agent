@@ -55,6 +55,14 @@ export const DEFAULT_PROVIDERS: Record<ProviderId, ProviderConfig> = {
     selectedModel: 'qwen2.5-coder',
     enabled: false,
   },
+  'openai-compatible': {
+    id: 'openai-compatible',
+    name: 'Compatible (OpenAI API / Local)',
+    apiKey: '',
+    baseUrl: 'https://api.openai.com/v1',
+    selectedModel: 'gpt-4o-mini',
+    enabled: true,
+  },
 };
 
 export function getSettings(): AppSettings {
