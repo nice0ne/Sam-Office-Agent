@@ -30,6 +30,8 @@ describe('Specialist Agents Tools & Prompts', () => {
     expect(toolNames).toContain('insert_content');
     expect(toolNames).toContain('replace_selection');
     expect(toolNames).toContain('insert_table');
+    expect(toolNames).toContain('generate_structured_doc');
+    expect(toolNames).toContain('polish_document_text');
     expect(agent.id).toBe('word-specialist');
     expect(agent.hostType).toBe('Word');
   });
@@ -41,6 +43,7 @@ describe('Specialist Agents Tools & Prompts', () => {
     expect(toolNames).toContain('add_slide');
     expect(toolNames).toContain('insert_slide_content');
     expect(toolNames).toContain('set_speaker_notes');
+    expect(toolNames).toContain('generate_themed_deck');
     expect(agent.id).toBe('ppt-specialist');
     expect(agent.hostType).toBe('PowerPoint');
   });
@@ -374,6 +377,65 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Word insertion failed');
     });
+
+    it('executes generate_structured_doc in WordAgent', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'w1',
+          name: 'generate_structured_doc',
+          arguments: {
+            templateType: 'SOP',
+            title: 'SOP Pengajuan Cuti',
+            sections: [
+              { heading: 'Tujuan', content: 'Standarisasi pengajuan cuti tahunan karyawan.' },
+              { heading: 'Prosedur', bullets: ['Isi form cuti', 'Minta persetujuan atasan'] },
+            ],
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('SOP');
+      expect(res.result).toContain('SOP Pengajuan Cuti');
+    });
+
+    it('fails generate_structured_doc when required arguments are missing', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'w-err-missing',
+          name: 'generate_structured_doc',
+          arguments: {
+            templateType: 'SOP',
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('wajib diisi');
+    });
+
+    it('executes polish_document_text in WordAgent', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'w2',
+          name: 'polish_document_text',
+          arguments: {
+            scope: 'selection',
+            tone: 'formal_indonesia',
+            customText: 'Yth. Bapak/Ibu Direksi, berikut kami sampaikan laporan kinerja.',
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('formal_indonesia');
+    });
   });
 
   describe('PPTAgent execution', () => {
@@ -459,6 +521,47 @@ describe('Specialist Agents Tools & Prompts', () => {
       );
       expect(result.success).toBe(false);
       expect(result.error).toBe('PPT slide addition failed');
+    });
+
+    it('executes generate_themed_deck in PPTAgent', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'p1',
+          name: 'generate_themed_deck',
+          arguments: {
+            topic: 'Laporan Q3',
+            theme: 'corporate_blue',
+            slides: [
+              { title: 'Cover', layout: 'title_cover', content: ['Q3 Performance Overview'] },
+              { title: 'Metrik Kunci', layout: 'metric_highlights', metrics: [{ label: 'Pertumbuhan', value: '+25%' }] },
+            ],
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Laporan Q3');
+      expect(res.result).toContain('corporate_blue');
+    });
+
+    it('fails generate_themed_deck when missing required arguments', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'p-err-missing',
+          name: 'generate_themed_deck',
+          arguments: {
+            topic: 'Laporan Q3',
+            slides: [],
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('wajib diisi');
     });
   });
 });

@@ -1,4 +1,12 @@
-import { CleanDataOptions, CleanDataResult, ConditionalFormattingOptions, IDocumentDriver } from './types';
+import {
+  CleanDataOptions,
+  CleanDataResult,
+  ConditionalFormattingOptions,
+  IDocumentDriver,
+  PolishTextOptions,
+  StructuredDocOptions,
+  ThemedDeckOptions,
+} from './types';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
@@ -190,6 +198,33 @@ export class MockOfficeDriver implements IDocumentDriver {
     this.wordContent.push(`[Tabel ${rows}x${cols}]`);
   }
 
+  async generateStructuredDoc(options: StructuredDocOptions): Promise<{ success: boolean; message: string }> {
+    this.wordContent.push(`[${options.templateType}] ${options.title}`);
+    for (const section of options.sections) {
+      this.wordContent.push(`## ${section.heading}`);
+      if (section.content) this.wordContent.push(section.content);
+      if (section.bullets && section.bullets.length > 0) {
+        this.wordContent.push(...section.bullets.map((b) => `• ${b}`));
+      }
+      if (section.table) {
+        this.wordContent.push(`[Tabel: ${section.table.headers.join(', ')}]`);
+      }
+    }
+    return {
+      success: true,
+      message: `Dokumen ${options.templateType} "${options.title}" berhasil dibuat dengan ${options.sections.length} bagian.`,
+    };
+  }
+
+  async polishDocumentText(options: PolishTextOptions): Promise<{ success: boolean; polishedText: string }> {
+    const textToSet = options.customText || 'Teks telah berhasil dipoles dan disempurnakan.';
+    this.wordContent = [textToSet];
+    return {
+      success: true,
+      polishedText: textToSet,
+    };
+  }
+
   async getSlideContext() {
     const active = this.slides[0] || { title: 'Slide 1', bullets: [], notes: '' };
     return {
@@ -231,6 +266,22 @@ export class MockOfficeDriver implements IDocumentDriver {
       await this.createSlide(s.title, s.bullets, s.notes, s.layout);
     }
     return { createdCount: slides.length };
+  }
+
+  async generateThemedDeck(options: ThemedDeckOptions): Promise<{ success: boolean; createdCount: number }> {
+    for (const s of options.slides) {
+      const bullets = s.content || (s.metrics ? s.metrics.map(m => `${m.label}: ${m.value}`) : []);
+      this.slides.push({
+        title: s.title,
+        bullets,
+        notes: s.notes || '',
+        layout: s.layout || 'bullet_points',
+      });
+    }
+    return {
+      success: true,
+      createdCount: options.slides.length,
+    };
   }
 
   async readSlideData(slideNumber?: number, allSlides = true): Promise<{

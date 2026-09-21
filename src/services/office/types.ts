@@ -33,6 +33,8 @@ export interface IDocumentDriver {
   insertPageBreak?(breakType?: 'page' | 'section'): Promise<void>;
   findAndReplace?(findText: string, replaceText: string, matchCase?: boolean): Promise<{ count: number }>;
   insertPictureBase64?(base64Image: string): Promise<void>;
+  generateStructuredDoc?(options: StructuredDocOptions): Promise<{ success: boolean; message: string }>;
+  polishDocumentText?(options: PolishTextOptions): Promise<{ success: boolean; polishedText: string }>;
   // PowerPoint operations
   getSlideContext(): Promise<{
     slideNumber: number;
@@ -53,6 +55,7 @@ export interface IDocumentDriver {
   setSpeakerNotes(notes: string): Promise<void>;
   createSlide?(title: string, bullets: string[], notes?: string, layout?: string): Promise<{ slideNumber: number }>;
   createPresentationDeck?(slides: Array<{ title: string; bullets: string[]; notes?: string; layout?: string }>): Promise<{ createdCount: number }>;
+  generateThemedDeck?(options: ThemedDeckOptions): Promise<{ success: boolean; createdCount: number }>;
 }
 
 export interface CleanDataOptions {
@@ -75,3 +78,35 @@ export interface ConditionalFormattingOptions {
   color?: string;
   thresholdValue?: number;
 }
+
+export interface StructuredDocOptions {
+  templateType: 'SOP' | 'MoM' | 'SPK' | 'PRD' | 'FormalMemo';
+  title: string;
+  sections: Array<{
+    heading: string;
+    content?: string;
+    bullets?: string[];
+    table?: { headers: string[]; rows: string[][] };
+  }>;
+  author?: string;
+}
+
+export interface PolishTextOptions {
+  scope: 'selection' | 'document';
+  tone: 'formal_indonesia' | 'executive_english' | 'concise';
+  instruction?: string;
+  customText?: string;
+}
+
+export interface ThemedDeckOptions {
+  topic: string;
+  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  slides: Array<{
+    title: string;
+    layout?: 'title_cover' | 'split_comparison' | 'bullet_points' | 'metric_highlights';
+    content?: string[];
+    metrics?: Array<{ label: string; value: string }>;
+    notes?: string;
+  }>;
+}
+

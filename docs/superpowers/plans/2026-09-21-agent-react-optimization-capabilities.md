@@ -507,7 +507,7 @@ git commit -m "feat(agent): implement ReActExecutionEngine with safety bounds an
 - Consumes: `ExcelDriver`, `MockOfficeDriver`
 - Produces: `cleanData(options)` and `applyConditionalFormatting(options)` methods and tools registered in `ExcelAgent`.
 
-- [ ] **Step 1: Write the failing test in `src/agents/__tests__/specialistAgents.test.ts`**
+- [x] **Step 1: Write the failing test in `src/agents/__tests__/specialistAgents.test.ts`**
 
 Add tests asserting `clean_data` and `apply_conditional_formatting` tool definitions exist and execute properly:
 ```typescript
@@ -537,12 +537,12 @@ it('executes apply_conditional_formatting tool', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/agents/__tests__/specialistAgents.test.ts -t "clean_data"`
 Expected: FAIL (tool not found/unhandled).
 
-- [ ] **Step 3: Implement `cleanData` and `applyConditionalFormatting` in `mockDriver.ts`, `excelDriver.ts`, and `excelAgent.ts`**
+- [x] **Step 3: Implement `cleanData` and `applyConditionalFormatting` in `mockDriver.ts`, `excelDriver.ts`, and `excelAgent.ts`**
 
 In `excelAgent.ts`:
 Add tools to `getTools()`:
@@ -554,12 +554,12 @@ Implement single-sync batching:
 - `cleanData`: Reads used range, computes deduplication & whitespace trimming in JS, updates values, and executes single `context.sync()`.
 - `applyConditionalFormatting`: Adds conditional formatting rules to target range with single `context.sync()`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npm test -- src/agents/__tests__/specialistAgents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
 
 ```bash
 git add src/services/office/ src/agents/excel/excelAgent.ts src/agents/__tests__/specialistAgents.test.ts
@@ -585,7 +585,7 @@ git commit -m "feat(excel): add clean_data and apply_conditional_formatting nati
   - Word: `generate_structured_doc`, `polish_document_text`
   - PowerPoint: `generate_themed_deck`
 
-- [ ] **Step 1: Write the failing test in `src/agents/__tests__/specialistAgents.test.ts`**
+- [x] **Step 1: Write the failing test in `src/agents/__tests__/specialistAgents.test.ts`**
 
 ```typescript
 it('executes generate_structured_doc in WordAgent', async () => {
@@ -621,23 +621,23 @@ it('executes generate_themed_deck in PPTAgent', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- src/agents/__tests__/specialistAgents.test.ts -t "generate_structured_doc"`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement driver methods and tool handlers in `WordAgent` and `PPTAgent`**
+- [x] **Step 3: Implement driver methods and tool handlers in `WordAgent` and `PPTAgent`**
 
 - In `wordDriver.ts` / `mockDriver.ts`: Implement `generateStructuredDoc` (inserts title, hierarchical headings, body paragraphs, and structured bullet items) and `polishDocumentText`.
 - In `pptDriver.ts` / `mockDriver.ts`: Implement `generateThemedDeck` (creates styled slides according to layout specifications).
 - Register schemas in `wordAgent.ts` and `pptAgent.ts`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npm test -- src/agents/__tests__/specialistAgents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit changes**
+- [x] **Step 5: Commit changes**
 
 ```bash
 git add src/services/office/ src/agents/word/wordAgent.ts src/agents/powerpoint/pptAgent.ts src/agents/__tests__/specialistAgents.test.ts
