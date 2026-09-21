@@ -107,7 +107,13 @@ export const Header: React.FC<HeaderProps> = ({
         {onToggleTheme && (
           <button
             onClick={onToggleTheme}
-            className="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+            className={`p-1 rounded-md transition-all border ${
+              themeMode === 'dark'
+                ? 'text-indigo-400 bg-indigo-950/40 border-indigo-800/50 hover:bg-indigo-900/50'
+                : themeMode === 'light'
+                ? 'text-amber-500 bg-amber-500/10 border-amber-400/40 hover:bg-amber-500/20'
+                : 'text-gray-500 dark:text-gray-400 bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
             title={
               themeMode === 'dark'
                 ? 'Tema: Gelap (Klik untuk mode Otomatis)'

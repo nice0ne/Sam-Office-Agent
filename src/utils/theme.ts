@@ -83,6 +83,60 @@ export function applyTheme(mode: ThemeMode): boolean {
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    if (document.documentElement.style) {
+      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    }
+
+    try {
+      if (document.head) {
+        let meta = document.querySelector('meta[name="theme-color"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'theme-color');
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', isDark ? '#111827' : '#f9fafb');
+      }
+    } catch {
+      // Ignore meta tag errors in test environments
+    }
   }
   return isDark;
+}
+
+/**
+ * Initializes listeners for dynamic system color scheme changes.
+ * Automatically updates active theme when current mode is 'auto'.
+ */
+export function initThemeListener(
+  getMode: () => ThemeMode,
+  onThemeChange?: (isDark: boolean) => void
+): () => void {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return () => {};
+  }
+
+  const mql = window.matchMedia('(prefers-color-scheme: dark)');
+  const handleChange = () => {
+    const currentMode = getMode();
+    if (currentMode === 'auto') {
+      const isDark = applyTheme('auto');
+      onThemeChange?.(isDark);
+    }
+  };
+
+  if (mql.addEventListener) {
+    mql.addEventListener('change', handleChange);
+  } else if ((mql as any).addListener) {
+    (mql as any).addListener(handleChange);
+  }
+
+  return () => {
+    if (mql.removeEventListener) {
+      mql.removeEventListener('change', handleChange);
+    } else if ((mql as any).removeListener) {
+      (mql as any).removeListener(handleChange);
+    }
+  };
 }

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ProviderConfig, ProviderId } from '../../types';
 import { getSettings, saveSettings, setActiveProvider } from '../../services/storage/settingsStorage';
 import { testProviderConnection } from '../../services/llm/factory';
-import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from '../../utils/theme';
+import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck, Sun, Moon, Monitor } from 'lucide-react';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   gemini: 'Gemini',
@@ -27,13 +28,22 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  currentTheme?: ThemeMode;
+  onThemeChange?: (mode: ThemeMode) => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSaved }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  onSaved,
+  currentTheme,
+  onThemeChange,
+}) => {
   const [settings, setSettings] = useState(getSettings());
   const [activeTab, setActiveTab] = useState<ProviderId>(settings.activeProviderId);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<ThemeMode>(() => currentTheme || getStoredThemeMode());
 
   useEffect(() => {
     if (isOpen) {
@@ -41,8 +51,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       setSettings(currentSettings);
       setActiveTab(currentSettings.activeProviderId);
       setTestResult(null);
+      setSelectedTheme(currentTheme || getStoredThemeMode());
     }
-  }, [isOpen]);
+  }, [isOpen, currentTheme]);
 
   if (!isOpen) return null;
 
@@ -126,6 +137,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     } finally {
       setTesting(false);
     }
+  };
+
+  const handleSelectTheme = (mode: ThemeMode) => {
+    setSelectedTheme(mode);
+    setStoredThemeMode(mode);
+    applyTheme(mode);
+    onThemeChange?.(mode);
   };
 
   const handleSaveAndApply = () => {
@@ -247,6 +265,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <span className="break-all">{testResult.message}</span>
             </div>
           )}
+
+          {/* Pilihan Tema Tampilan */}
+          <div className="p-2.5 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-700/80 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Tema Antarmuka
+              </span>
+              <span className="text-[10px] text-gray-400 capitalize">
+                {selectedTheme === 'auto' ? 'Otomatis' : selectedTheme === 'dark' ? 'Mode Gelap' : 'Mode Terang'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleSelectTheme('auto')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-medium border transition-all ${
+                  selectedTheme === 'auto'
+                    ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 shadow-2xs'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>Otomatis</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectTheme('light')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-medium border transition-all ${
+                  selectedTheme === 'light'
+                    ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-2xs'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Terang</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectTheme('dark')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-medium border transition-all ${
+                  selectedTheme === 'dark'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Gelap</span>
+              </button>
+            </div>
+          </div>
 
           <div className="p-2 bg-gray-50 dark:bg-gray-900/40 rounded border border-gray-200 dark:border-gray-700/60 flex items-start gap-2 text-[11px] text-gray-500 dark:text-gray-400">
             <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />

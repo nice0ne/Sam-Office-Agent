@@ -6,6 +6,26 @@
     <title>Sam Office Agent</title>
     <!-- Microsoft Office.js SDK CDN -->
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    <script>
+      (function() {
+        try {
+          var mode = localStorage.getItem('sam_theme_mode') || 'auto';
+          var isDark = mode === 'dark';
+          if (mode === 'auto') {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              isDark = true;
+            }
+          }
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased select-none">
     <div id="root"></div>

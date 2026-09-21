@@ -10,7 +10,7 @@ import { ReActExecutionEngine } from './agents/coordinator/reactEngine';
 import { documentContextCache } from './services/office/contextCache';
 import { getLLMProvider } from './services/llm/factory';
 import { getOfficeDriver } from './services/office';
-import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from './utils/theme';
+import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme, initThemeListener } from './utils/theme';
 import { compressTableContext } from './utils/contextCompressor';
 import { AgentContext } from './agents/types';
 
@@ -44,14 +44,20 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
 
   useEffect(() => {
     applyTheme(themeMode);
+    const unsubscribe = initThemeListener(() => themeMode);
+    return () => unsubscribe();
   }, [themeMode]);
+
+  const handleSelectTheme = (nextTheme: ThemeMode) => {
+    setThemeMode(nextTheme);
+    setStoredThemeMode(nextTheme);
+    applyTheme(nextTheme);
+  };
 
   const handleToggleTheme = () => {
     const nextTheme: ThemeMode =
       themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
-    setThemeMode(nextTheme);
-    setStoredThemeMode(nextTheme);
-    applyTheme(nextTheme);
+    handleSelectTheme(nextTheme);
   };
 
   useEffect(() => {
@@ -324,6 +330,8 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onSaved={() => setMessages(prev => [...prev])}
+        currentTheme={themeMode}
+        onThemeChange={handleSelectTheme}
       />
     </div>
   );

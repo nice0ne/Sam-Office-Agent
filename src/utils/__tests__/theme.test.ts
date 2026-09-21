@@ -4,6 +4,7 @@ import {
   getStoredThemeMode,
   setStoredThemeMode,
   applyTheme,
+  initThemeListener,
 } from '../theme';
 
 describe('Theme Utility', () => {
@@ -15,7 +16,17 @@ describe('Theme Utility', () => {
         remove: (cls: string) => classListSet.delete(cls),
         contains: (cls: string) => classListSet.has(cls),
       },
+      style: {
+        colorScheme: '',
+      },
     },
+    head: {
+      appendChild: vi.fn(),
+    },
+    querySelector: vi.fn(),
+    createElement: vi.fn().mockReturnValue({
+      setAttribute: vi.fn(),
+    }),
   };
 
   beforeEach(() => {
@@ -126,6 +137,68 @@ describe('Theme Utility', () => {
       const isDark = applyTheme('auto');
       expect(isDark).toBe(true);
       expect(document.documentElement.classList.contains('dark')).toBe(true);
+      expect((document.documentElement as any).style.colorScheme).toBe('dark');
+    });
+
+    it('sets colorScheme style to light when applying light mode', () => {
+      applyTheme('light');
+      expect((document.documentElement as any).style.colorScheme).toBe('light');
+    });
+  });
+
+  describe('initThemeListener', () => {
+    it('listens to system media query changes and triggers callback when mode is auto', () => {
+      let listenerCallback: any = null;
+      window.matchMedia = vi.fn().mockImplementation(query => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((event, cb) => {
+          if (event === 'change') listenerCallback = cb;
+        }),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      const onChange = vi.fn();
+      const unsubscribe = initThemeListener(() => 'auto', onChange);
+
+      expect(typeof unsubscribe).toBe('function');
+      expect(window.matchMedia).toHaveBeenCalledWith('(prefers-color-scheme: dark)');
+
+      // Simulate system color scheme change
+      if (listenerCallback) {
+        listenerCallback();
+      }
+      expect(onChange).toHaveBeenCalledWith(true);
+
+      unsubscribe();
+    });
+
+    it('does not trigger callback when current mode is not auto', () => {
+      let listenerCallback: any = null;
+      window.matchMedia = vi.fn().mockImplementation(query => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((event, cb) => {
+          if (event === 'change') listenerCallback = cb;
+        }),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+      const onChange = vi.fn();
+      initThemeListener(() => 'dark', onChange);
+
+      if (listenerCallback) {
+        listenerCallback();
+      }
+      expect(onChange).not.toHaveBeenCalled();
     });
   });
 });
