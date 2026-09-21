@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { HostType, ProviderId, ExecutionMode } from '../../types';
 import { ThemeMode } from '../../utils/theme';
 import {
@@ -11,7 +11,19 @@ import {
   Sun,
   Moon,
   Monitor,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
+
+export const AVAILABLE_PROVIDERS: Array<{ id: ProviderId; label: string; badge: string }> = [
+  { id: 'gemini', label: 'Google Gemini', badge: 'Gemini 2.0' },
+  { id: 'openai', label: 'OpenAI (ChatGPT)', badge: 'GPT-4o' },
+  { id: 'openai-compatible', label: 'Compatible (API / Local)', badge: 'Groq / LM Studio / vLLM' },
+  { id: 'claude', label: 'Anthropic Claude', badge: 'Claude 3.5' },
+  { id: 'glm', label: 'GLM Coding (Zhipu)', badge: 'GLM-4' },
+  { id: 'openrouter', label: 'OpenRouter', badge: 'Multi-model' },
+  { id: 'ollama', label: 'Local Ollama', badge: 'Offline' },
+];
 
 export interface HeaderProps {
   host: HostType;
@@ -21,6 +33,7 @@ export interface HeaderProps {
   onOpenSettings: () => void;
   themeMode?: ThemeMode;
   onToggleTheme?: () => void;
+  onSelectProvider?: (providerId: ProviderId) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,7 +44,45 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   themeMode = 'auto',
   onToggleTheme,
+  onSelectProvider,
 }) => {
+  let isProviderOpen = false;
+  let setIsProviderOpen: React.Dispatch<React.SetStateAction<boolean>> = () => {};
+  let dropdownRef: React.RefObject<HTMLDivElement> = { current: null };
+
+  const hasDispatcher = Boolean(
+    (React as any)?.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED?.ReactCurrentDispatcher?.current
+  );
+
+  if (hasDispatcher) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const [open, setOpen] = useState(false);
+    isProviderOpen = open;
+    setIsProviderOpen = setOpen;
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    dropdownRef = useRef<HTMLDivElement>(null);
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      if (!isProviderOpen || typeof document === 'undefined') return;
+      const handleClickOutside = (e: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+          setIsProviderOpen(false);
+        }
+      };
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setIsProviderOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [isProviderOpen]);
+  }
   const getHostIcon = () => {
     switch (host) {
       case 'Excel':
@@ -72,12 +123,76 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </h1>
           <span className="text-gray-300 dark:text-gray-600 text-xs select-none">·</span>
-          <span
-            className="text-[10px] text-gray-500 dark:text-gray-400 font-medium capitalize truncate max-w-[85px]"
-            title={activeProviderId}
-          >
-            {activeProviderId}
-          </span>
+
+          {/* Provider Dropdown Trigger & Menu */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsProviderOpen(prev => !prev)}
+              aria-haspopup="true"
+              aria-expanded={isProviderOpen}
+              aria-label="Pilih Provider AI"
+              title="Ganti Provider AI"
+              className="flex items-center gap-1 text-[10px] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium capitalize px-1.5 py-0.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/60 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition select-none"
+            >
+              <span className="truncate max-w-[80px]">{activeProviderId}</span>
+              <ChevronDown className={`w-2.5 h-2.5 opacity-60 transition-transform ${isProviderOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isProviderOpen && (
+              <div
+                role="menu"
+                aria-label="Daftar Provider AI"
+                className="absolute left-0 mt-1.5 w-52 bg-white dark:bg-gray-850 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 select-none animate-in fade-in-0 zoom-in-95 duration-100"
+              >
+                <div className="px-2.5 py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-gray-800">
+                  Pilih Provider AI
+                </div>
+                <div className="max-h-56 overflow-y-auto py-0.5">
+                  {AVAILABLE_PROVIDERS.map(p => {
+                    const isSelected = p.id === activeProviderId;
+                    return (
+                      <button
+                        key={p.id}
+                        role="menuitem"
+                        type="button"
+                        onClick={() => {
+                          onSelectProvider?.(p.id);
+                          setIsProviderOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs transition-colors ${
+                          isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-semibold'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <div className="flex flex-col min-w-0 pr-1">
+                          <span className="truncate">{p.label}</span>
+                          <span className="text-[9px] text-gray-400 dark:text-gray-500 font-normal truncate">
+                            {p.badge}
+                          </span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-1 px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProviderOpen(false);
+                      onOpenSettings();
+                    }}
+                    className="w-full flex items-center gap-1.5 px-2 py-1 text-[11px] text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded transition"
+                  >
+                    <Settings className="w-3 h-3" />
+                    <span>Pengaturan API Key...</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

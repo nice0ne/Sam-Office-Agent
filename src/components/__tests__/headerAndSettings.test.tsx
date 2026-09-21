@@ -227,6 +227,43 @@ describe('Header Component', () => {
     themeButton.props.onClick();
     expect(onToggleTheme).toHaveBeenCalledTimes(1);
   });
+
+  it('renders provider dropdown button and opens menu on click to select new provider', () => {
+    const onSelectProvider = vi.fn();
+    const harness = createHookHarness(Header, {
+      host: 'Excel' as const,
+      activeProviderId: 'gemini' as const,
+      executionMode: 'copilot' as const,
+      onToggleMode: () => {},
+      onOpenSettings: () => {},
+      onSelectProvider,
+    });
+
+    let vdom = harness.render();
+    const leftDiv = vdom.props.children[0];
+    const triggerWrapper = leftDiv.props.children[1].props.children[2];
+    const triggerButton = triggerWrapper.props.children[0];
+
+    expect(triggerButton.props['aria-label']).toBe('Pilih Provider AI');
+
+    // Click trigger to open dropdown
+    triggerButton.props.onClick();
+    vdom = harness.render();
+
+    // Menu should now be open
+    const updatedWrapper = vdom.props.children[0].props.children[1].props.children[2];
+    const menu = updatedWrapper.props.children[1];
+    expect(menu).toBeDefined();
+    expect(menu.props['aria-label']).toBe('Daftar Provider AI');
+
+    // Click OpenAI option in menu
+    const menuItems = menu.props.children[1].props.children;
+    const openaiItem = menuItems.find((item: any) => item.key === 'openai');
+    expect(openaiItem).toBeDefined();
+    openaiItem.props.onClick();
+
+    expect(onSelectProvider).toHaveBeenCalledWith('openai');
+  });
 });
 
 describe('SettingsModal Component', () => {

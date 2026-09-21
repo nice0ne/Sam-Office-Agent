@@ -4,7 +4,7 @@ import { ChatContainer } from './components/Chat/ChatContainer';
 import { InputBar } from './components/Chat/InputBar';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { ChatMessage, ExecutionMode, HostType, ToolCall } from './types';
-import { getActiveProvider, getExecutionMode, setExecutionMode } from './services/storage/settingsStorage';
+import { getActiveProvider, setActiveProvider, getExecutionMode, setExecutionMode } from './services/storage/settingsStorage';
 import { SamCoordinator } from './agents/coordinator/samCoordinator';
 import { ReActExecutionEngine } from './agents/coordinator/reactEngine';
 import { documentContextCache } from './services/office/contextCache';
@@ -316,6 +316,10 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         onOpenSettings={() => setIsSettingsOpen(true)}
         themeMode={themeMode}
         onToggleTheme={handleToggleTheme}
+        onSelectProvider={(id) => {
+          setActiveProvider(id);
+          setMessages(prev => [...prev]);
+        }}
       />
 
       <ChatContainer
