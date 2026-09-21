@@ -14,10 +14,49 @@ export class GeminiProvider implements ILLMProvider {
     const model = config.selectedModel || 'gemini-2.0-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(config.apiKey)}`;
 
-    const contents = req.messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
+    const contents: any[] = [];
+    for (const m of req.messages) {
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        const parts: any[] = [];
+        if (m.content) {
+          parts.push({ text: m.content });
+        }
+        for (const tc of m.toolCalls) {
+          let args = tc.arguments || {};
+          if (typeof args === 'string') {
+            try {
+              args = JSON.parse(args);
+            } catch {
+              args = {};
+            }
+          }
+          parts.push({
+            functionCall: {
+              name: tc.name,
+              args,
+            },
+          });
+        }
+        contents.push({ role: 'model', parts });
+      } else if (m.role === 'tool') {
+        contents.push({
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                name: m.toolName || 'tool',
+                response: { content: m.content },
+              },
+            },
+          ],
+        });
+      } else {
+        contents.push({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        });
+      }
+    }
 
     const body: Record<string, any> = { contents };
 

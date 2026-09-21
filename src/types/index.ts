@@ -17,10 +17,14 @@ export interface ProviderConfig {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  displayContent?: string;
   timestamp: number;
   toolCalls?: ToolCall[];
+  toolCallId?: string;
+  toolName?: string;
+  isError?: boolean;
   status?: 'sending' | 'streaming' | 'done' | 'error';
   error?: string;
 }
@@ -29,7 +33,9 @@ export interface ToolProperty {
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   description: string;
   enum?: string[];
-  items?: { type: string };
+  items?: { type: string; properties?: Record<string, any>; required?: string[] } | Record<string, any>;
+  properties?: Record<string, any>;
+  required?: string[];
 }
 
 export interface ToolDefinition {

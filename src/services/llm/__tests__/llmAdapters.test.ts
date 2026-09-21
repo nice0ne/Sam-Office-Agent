@@ -4,7 +4,7 @@ import { OpenAICompatibleProvider } from '../openai';
 import { GeminiProvider } from '../gemini';
 import { AnthropicProvider } from '../anthropic';
 import { GLMProvider } from '../glm';
-import { ToolDefinition } from '../../../types';
+import { ToolDefinition, ChatMessage } from '../../../types';
 
 describe('LLM Provider Factory', () => {
   it('returns valid adapter instances for all supported providers', () => {
@@ -305,6 +305,44 @@ describe('OpenAICompatibleProvider', () => {
     expect(capturedHeaders['X-Title']).toBe('Sam Office Agent');
     expect(capturedHeaders['Authorization']).toBe('Bearer sk-or-test');
   });
+
+  it('OpenAIProvider serializes assistant tool_calls and tool result messages', async () => {
+    const provider = new OpenAICompatibleProvider('openai', 'OpenAI', 'https://api.openai.com/v1');
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Done"}}]}\n\n') })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      };
+    });
+
+    const msgs: ChatMessage[] = [
+      { id: '1', role: 'user', content: 'Hitung total', timestamp: 1 },
+      { id: '2', role: 'assistant', content: '', timestamp: 2, toolCalls: [{ id: 'call_1', name: 'read_sheet', arguments: {}, status: 'applied' }] },
+      { id: '3', role: 'tool', toolCallId: 'call_1', toolName: 'read_sheet', content: '{"values":[[100]]}', timestamp: 3 },
+    ];
+
+    const events = [];
+    for await (const e of provider.sendMessage({ messages: msgs }, { id: 'openai', name: 'OpenAI', apiKey: 'test', selectedModel: 'gpt-4o', enabled: true })) {
+      events.push(e);
+    }
+
+    expect(capturedBody.messages).toHaveLength(3);
+    expect(capturedBody.messages[1].role).toBe('assistant');
+    expect(capturedBody.messages[1].tool_calls).toBeDefined();
+    expect(capturedBody.messages[1].tool_calls[0].id).toBe('call_1');
+    expect(capturedBody.messages[1].tool_calls[0].function.name).toBe('read_sheet');
+    expect(capturedBody.messages[2].role).toBe('tool');
+    expect(capturedBody.messages[2].tool_call_id).toBe('call_1');
+    expect(capturedBody.messages[2].content).toBe('{"values":[[100]]}');
+  });
 });
 
 describe('GeminiProvider', () => {
@@ -486,6 +524,48 @@ describe('GeminiProvider', () => {
     expect(events[0].toolCall?.arguments).toEqual({ address: 'B2' });
     expect(events[0].toolCall?.status).toBe('pending');
     expect(events[1]).toEqual({ type: 'done' });
+  });
+
+  it('GeminiProvider serializes assistant functionCall and tool result messages', async () => {
+    const gemini = new GeminiProvider();
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('data: {"candidates":[{"content":{"parts":[{"text":"Done"}]}}]}\n\n') })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      };
+    });
+
+    const msgs: ChatMessage[] = [
+      { id: '1', role: 'user', content: 'Hitung total', timestamp: 1 },
+      { id: '2', role: 'assistant', content: '', timestamp: 2, toolCalls: [{ id: 'call_1', name: 'read_sheet', arguments: { sheet: 'Sheet1' }, status: 'applied' }] },
+      { id: '3', role: 'tool', toolCallId: 'call_1', toolName: 'read_sheet', content: '{"values":[[100]]}', timestamp: 3 },
+    ];
+
+    const events = [];
+    for await (const e of gemini.sendMessage({ messages: msgs }, { id: 'gemini', name: 'Google Gemini', apiKey: 'test', selectedModel: 'gemini-2.0-flash', enabled: true })) {
+      events.push(e);
+    }
+
+    expect(capturedBody.contents).toHaveLength(3);
+    expect(capturedBody.contents[0].role).toBe('user');
+    expect(capturedBody.contents[1].role).toBe('model');
+    expect(capturedBody.contents[1].parts[0].functionCall).toEqual({
+      name: 'read_sheet',
+      args: { sheet: 'Sheet1' },
+    });
+    expect(capturedBody.contents[2].role).toBe('user');
+    expect(capturedBody.contents[2].parts[0].functionResponse).toEqual({
+      name: 'read_sheet',
+      response: { content: '{"values":[[100]]}' },
+    });
   });
 });
 
@@ -695,6 +775,52 @@ describe('AnthropicProvider', () => {
         },
       },
       { type: 'done' },
+    ]);
+  });
+
+  it('AnthropicProvider serializes assistant tool_use blocks and tool result messages', async () => {
+    const claude = new AnthropicProvider();
+    let capturedBody: any = null;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: vi.fn()
+              .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('data: {"type":"message_stop"}\n\n') })
+              .mockResolvedValueOnce({ done: true, value: undefined }),
+          }),
+        },
+      };
+    });
+
+    const msgs: ChatMessage[] = [
+      { id: '1', role: 'user', content: 'Hitung total', timestamp: 1 },
+      { id: '2', role: 'assistant', content: 'Executing', timestamp: 2, toolCalls: [{ id: 'call_1', name: 'read_sheet', arguments: { sheet: 'Sheet1' }, status: 'applied' }] },
+      { id: '3', role: 'tool', toolCallId: 'call_1', toolName: 'read_sheet', content: '{"values":[[100]]}', isError: false, timestamp: 3 },
+      { id: '4', role: 'tool', toolCallId: 'call_2', toolName: 'read_sheet', content: 'Error reading', isError: true, timestamp: 4 },
+    ];
+
+    const events = [];
+    for await (const e of claude.sendMessage({ messages: msgs }, { id: 'claude', name: 'Anthropic Claude', apiKey: 'test', selectedModel: 'claude-3-5-sonnet-20241022', enabled: true })) {
+      events.push(e);
+    }
+
+    expect(capturedBody.messages).toHaveLength(4);
+    expect(capturedBody.messages[0].role).toBe('user');
+    expect(capturedBody.messages[1].role).toBe('assistant');
+    expect(capturedBody.messages[1].content).toEqual([
+      { type: 'text', text: 'Executing' },
+      { type: 'tool_use', id: 'call_1', name: 'read_sheet', input: { sheet: 'Sheet1' } },
+    ]);
+    expect(capturedBody.messages[2].role).toBe('user');
+    expect(capturedBody.messages[2].content).toEqual([
+      { type: 'tool_result', tool_use_id: 'call_1', content: '{"values":[[100]]}', is_error: false },
+    ]);
+    expect(capturedBody.messages[3].role).toBe('user');
+    expect(capturedBody.messages[3].content).toEqual([
+      { type: 'tool_result', tool_use_id: 'call_2', content: 'Error reading', is_error: true },
     ]);
   });
 });

@@ -26,7 +26,28 @@ export class OpenAICompatibleProvider implements ILLMProvider {
       messages.push({ role: 'system', content: req.systemPrompt });
     }
     for (const m of req.messages) {
-      messages.push({ role: m.role, content: m.content });
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        messages.push({
+          role: 'assistant',
+          content: m.content || null,
+          tool_calls: m.toolCalls.map(tc => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments || {}),
+            },
+          })),
+        });
+      } else if (m.role === 'tool') {
+        messages.push({
+          role: 'tool',
+          tool_call_id: m.toolCallId || 'call_default',
+          content: m.content,
+        });
+      } else {
+        messages.push({ role: m.role, content: m.content });
+      }
     }
 
     const body: Record<string, any> = {

@@ -12,10 +12,53 @@ export class AnthropicProvider implements ILLMProvider {
     }
 
     const url = 'https://api.anthropic.com/v1/messages';
-    const messages = req.messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content,
-    }));
+    const messages: any[] = [];
+    for (const m of req.messages) {
+      if (m.role === 'assistant' && m.toolCalls && m.toolCalls.length > 0) {
+        const content: any[] = [];
+        if (m.content) {
+          content.push({ type: 'text', text: m.content });
+        }
+        for (const tc of m.toolCalls) {
+          let input = tc.arguments || {};
+          if (typeof input === 'string') {
+            try {
+              input = JSON.parse(input);
+            } catch {
+              input = {};
+            }
+          }
+          content.push({
+            type: 'tool_use',
+            id: tc.id,
+            name: tc.name,
+            input,
+          });
+        }
+        messages.push({
+          role: 'assistant',
+          content,
+        });
+      } else if (m.role === 'tool') {
+        const toolResult: Record<string, any> = {
+          type: 'tool_result',
+          tool_use_id: m.toolCallId,
+          content: m.content,
+        };
+        if (m.isError !== undefined) {
+          toolResult.is_error = m.isError;
+        }
+        messages.push({
+          role: 'user',
+          content: [toolResult],
+        });
+      } else {
+        messages.push({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        });
+      }
+    }
 
     const body: Record<string, any> = {
       model: config.selectedModel || 'claude-3-5-sonnet-20241022',
