@@ -219,4 +219,60 @@ describe('useSpeechRecognition', () => {
     expect(hook.result.error).toBe('not-allowed');
     expect(hook.result.isListening).toBe(false);
   });
+
+  it('clears transcript when starting a new listening session', () => {
+    let mockInstance: MockSpeechRecognition | null = null;
+    class SpyingMockSpeechRecognition extends MockSpeechRecognition {
+      constructor() {
+        super();
+        mockInstance = this;
+      }
+    }
+    (globalThis as any).webkitSpeechRecognition = SpyingMockSpeechRecognition;
+
+    const hook = renderSpeechHook();
+
+    // First session
+    hook.result.startListening();
+    hook.rerender();
+
+    mockInstance!.onresult!({
+      resultIndex: 0,
+      results: [
+        {
+          0: { transcript: 'perintah pertama' },
+          isFinal: true,
+          length: 1,
+        },
+      ],
+    });
+    hook.rerender();
+    expect(hook.result.transcript).toBe('perintah pertama');
+
+    // Stop first session
+    hook.result.stopListening();
+    hook.rerender();
+
+    // Start new session ("klik baru")
+    hook.result.startListening();
+    hook.rerender();
+
+    // The transcript should now be cleared
+    expect(hook.result.transcript).toBe('');
+    expect(hook.result.interimTranscript).toBe('');
+
+    // Second session speech should not be concatenated with first session
+    mockInstance!.onresult!({
+      resultIndex: 0,
+      results: [
+        {
+          0: { transcript: 'perintah kedua' },
+          isFinal: true,
+          length: 1,
+        },
+      ],
+    });
+    hook.rerender();
+    expect(hook.result.transcript).toBe('perintah kedua');
+  });
 });

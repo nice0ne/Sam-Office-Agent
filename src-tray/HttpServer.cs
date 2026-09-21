@@ -239,6 +239,7 @@ namespace SamOfficeAgent
             byte[] buffer = new byte[4096];
             int headerEndIndex = -1;
             string headerText;
+            byte[] allBytes;
 
             using (MemoryStream ms = new MemoryStream())
             {
@@ -267,7 +268,7 @@ namespace SamOfficeAgent
                     return;
                 }
 
-                byte[] allBytes = ms.ToArray();
+                allBytes = ms.ToArray();
                 headerText = Encoding.ASCII.GetString(allBytes, 0, headerEndIndex);
             }
 
@@ -293,6 +294,13 @@ namespace SamOfficeAgent
             if (method == "OPTIONS")
             {
                 SendOptionsResponse(stream);
+                return;
+            }
+
+            // Handle Proxy endpoint: /api/proxy
+            if (rawUrl.StartsWith("/api/proxy", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleProxyRequest(stream, method, rawUrl, headerLines, allBytes, headerEndIndex);
                 return;
             }
 
@@ -404,6 +412,150 @@ namespace SamOfficeAgent
                 }
             }
             return -1;
+        }
+
+        private void HandleProxyRequest(SslStream stream, string method, string rawUrl, string[] headerLines, byte[] allBytes, int headerEndIndex)
+        {
+            string targetUrl = null;
+            int qIdx = rawUrl.IndexOf('?');
+            if (qIdx >= 0 && qIdx < rawUrl.Length - 1)
+            {
+                string queryString = rawUrl.Substring(qIdx + 1);
+                string[] qParts = queryString.Split('&');
+                foreach (string qp in qParts)
+                {
+                    string[] kv = qp.Split(new char[] { '=' }, 2);
+                    if (kv.Length == 2 && kv[0].Equals("target", StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetUrl = Uri.UnescapeDataString(kv[1]);
+                        break;
+                    }
+                }
+            }
+
+            string authHeader = null;
+            string contentTypeHeader = "application/json";
+            int contentLength = 0;
+
+            foreach (string line in headerLines)
+            {
+                if (line.StartsWith("X-Target-URL:", StringComparison.OrdinalIgnoreCase))
+                {
+                    targetUrl = line.Substring("X-Target-URL:".Length).Trim();
+                }
+                else if (line.StartsWith("Authorization:", StringComparison.OrdinalIgnoreCase))
+                {
+                    authHeader = line.Substring("Authorization:".Length).Trim();
+                }
+                else if (line.StartsWith("Content-Type:", StringComparison.OrdinalIgnoreCase))
+                {
+                    contentTypeHeader = line.Substring("Content-Type:".Length).Trim();
+                }
+                else if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int.TryParse(line.Substring("Content-Length:".Length).Trim(), out contentLength);
+                }
+            }
+
+            if (string.IsNullOrEmpty(targetUrl))
+            {
+                SendError(stream, 400, "Missing target URL for proxy");
+                return;
+            }
+
+            try
+            {
+                ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+                HttpWebRequest proxyReq = (HttpWebRequest)WebRequest.Create(targetUrl);
+                proxyReq.Method = method;
+                proxyReq.ContentType = contentTypeHeader;
+                proxyReq.Timeout = 60000;
+                proxyReq.ReadWriteTimeout = 60000;
+
+                if (!string.IsNullOrEmpty(authHeader))
+                {
+                    proxyReq.Headers["Authorization"] = authHeader;
+                }
+
+                // Forward body if POST/PUT
+                if ((method == "POST" || method == "PUT") && contentLength > 0)
+                {
+                    proxyReq.ContentLength = contentLength;
+                    int bodyStartIndex = headerEndIndex + 4; // after \r\n\r\n
+                    int bytesAlreadyRead = allBytes.Length - bodyStartIndex;
+
+                    using (Stream reqStream = proxyReq.GetRequestStream())
+                    {
+                        if (bytesAlreadyRead > 0)
+                        {
+                            int toWrite = Math.Min(bytesAlreadyRead, contentLength);
+                            reqStream.Write(allBytes, bodyStartIndex, toWrite);
+                            contentLength -= toWrite;
+                        }
+
+                        byte[] buffer = new byte[4096];
+                        while (contentLength > 0)
+                        {
+                            int read = stream.Read(buffer, 0, Math.Min(buffer.Length, contentLength));
+                            if (read <= 0) break;
+                            reqStream.Write(buffer, 0, read);
+                            contentLength -= read;
+                        }
+                    }
+                }
+
+                using (HttpWebResponse proxyRes = (HttpWebResponse)proxyReq.GetResponse())
+                {
+                    SendProxyResponse(stream, proxyRes);
+                }
+            }
+            catch (WebException wex)
+            {
+                HttpWebResponse errorRes = wex.Response as HttpWebResponse;
+                if (errorRes != null)
+                {
+                    SendProxyResponse(stream, errorRes);
+                }
+                else
+                {
+                    SendError(stream, 502, "Bad Gateway: " + wex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                SendError(stream, 500, "Proxy Error: " + ex.Message);
+            }
+        }
+
+        private static void SendProxyResponse(SslStream stream, HttpWebResponse proxyRes)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("HTTP/1.1 ").Append((int)proxyRes.StatusCode).Append(" ").Append(proxyRes.StatusDescription).Append("\r\n");
+            sb.Append("Access-Control-Allow-Origin: *\r\n");
+            sb.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS, HEAD\r\n");
+            sb.Append("Access-Control-Allow-Headers: *\r\n");
+            if (!string.IsNullOrEmpty(proxyRes.ContentType))
+            {
+                sb.Append("Content-Type: ").Append(proxyRes.ContentType).Append("\r\n");
+            }
+            sb.Append("Connection: close\r\n\r\n");
+
+            byte[] headerBytes = Encoding.ASCII.GetBytes(sb.ToString());
+            stream.Write(headerBytes, 0, headerBytes.Length);
+
+            using (Stream resStream = proxyRes.GetResponseStream())
+            {
+                if (resStream != null)
+                {
+                    byte[] buffer = new byte[4096];
+                    int read;
+                    while ((read = resStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        stream.Write(buffer, 0, read);
+                    }
+                }
+            }
+            stream.Flush();
         }
 
         private static void SendOptionsResponse(SslStream stream)

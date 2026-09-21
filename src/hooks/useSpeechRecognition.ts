@@ -76,6 +76,8 @@ export function useSpeechRecognition({
     }
 
     setError(null);
+    setTranscript('');
+    setInterimTranscript('');
 
     try {
       if (recognitionRef.current) {

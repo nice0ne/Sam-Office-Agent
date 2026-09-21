@@ -105,11 +105,29 @@ export class OpenAICompatibleProvider implements ILLMProvider {
     }
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+      } catch (fetchErr: any) {
+        // Fallback to local reverse proxy if direct fetch fails (Mixed Content / CORS for LAN/HTTP)
+        try {
+          const proxyUrl = `/api/proxy?target=${encodeURIComponent(url)}`;
+          response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+              ...headers,
+              'X-Target-URL': url,
+            },
+            body: JSON.stringify(body),
+          });
+        } catch {
+          throw fetchErr;
+        }
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -227,11 +245,29 @@ export class OpenAICompatibleProvider implements ILLMProvider {
         testBody.max_tokens = 5;
       }
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(testBody),
-      });
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(testBody),
+        });
+      } catch (fetchErr: any) {
+        // Fallback to local reverse proxy if direct fetch fails (Mixed Content / CORS for LAN/HTTP)
+        try {
+          const proxyUrl = `/api/proxy?target=${encodeURIComponent(url)}`;
+          res = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+              ...headers,
+              'X-Target-URL': url,
+            },
+            body: JSON.stringify(testBody),
+          });
+        } catch {
+          throw fetchErr;
+        }
+      }
 
       if (res.ok) {
         const json = typeof res.json === 'function' ? await res.json().catch(() => null) : null;

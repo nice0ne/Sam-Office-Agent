@@ -54,7 +54,80 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
             <span className="text-amber-500">Chart:</span> {args.chartType} ({args.dataRange})
           </div>
         )}
-        {toolCall.name !== 'write_cells' && toolCall.name !== 'format_range' && toolCall.name !== 'create_chart' && (
+        {toolCall.name === 'insert_chart_image' && (
+          <div>
+            <span className="text-amber-500">Grafik Word:</span> {args.chartType?.toUpperCase()} {args.title ? `- "${args.title}"` : ''}
+            {Array.isArray(args.labels) && (
+              <div><span className="text-purple-500">Data:</span> {args.labels.length} item ({args.labels.slice(0, 4).join(', ')}{args.labels.length > 4 ? '...' : ''})</div>
+            )}
+          </div>
+        )}
+        {toolCall.name === 'insert_page_break' && (
+          <div>
+            <span className="text-indigo-500">Pemisah:</span> {args.breakType === 'section' ? 'Section Break (Halaman Berikutnya)' : 'Page Break (Halaman Baru)'}
+          </div>
+        )}
+        {toolCall.name === 'find_and_replace' && (
+          <div>
+            <div><span className="text-blue-500">Cari:</span> &quot;{args.findText}&quot;</div>
+            <div><span className="text-green-500">Ganti dengan:</span> &quot;{args.replaceText}&quot;</div>
+          </div>
+        )}
+        {toolCall.name === 'create_slide' && (
+          <div>
+            <div className="font-semibold text-orange-500">Slide: {args.title}</div>
+            {Array.isArray(args.bullets) && args.bullets.length > 0 && (
+              <ul className="mt-1 space-y-0.5 text-[10px] text-gray-600 dark:text-gray-300">
+                {args.bullets.slice(0, 3).map((b: string, i: number) => (
+                  <li key={i} className="truncate">• {b}</li>
+                ))}
+                {args.bullets.length > 3 && <li className="text-gray-400">...dan {args.bullets.length - 3} poin lainnya</li>}
+              </ul>
+            )}
+            {args.notes && (
+              <div className="mt-1 text-[10px] text-gray-400 italic truncate">Notes: {args.notes}</div>
+            )}
+          </div>
+        )}
+        {toolCall.name === 'create_presentation_deck' && (
+          <div>
+            <div className="font-semibold text-orange-500">Presentasi ({Array.isArray(args.slides) ? args.slides.length : 0} Slide):</div>
+            {Array.isArray(args.slides) && (
+              <ol className="mt-1 space-y-0.5 text-[10px] text-gray-600 dark:text-gray-300">
+                {args.slides.slice(0, 4).map((s: any, i: number) => (
+                  <li key={i} className="truncate font-medium">{i + 1}. {s.title || `Slide ${i + 1}`}</li>
+                ))}
+                {args.slides.length > 4 && <li className="text-gray-400">...dan {args.slides.length - 4} slide lainnya</li>}
+              </ol>
+            )}
+          </div>
+        )}
+        {toolCall.name === 'read_slides' && (
+          <div>
+            <div className="font-semibold text-blue-500">Membaca Slide PowerPoint</div>
+            <div className="text-[11px] text-gray-600 dark:text-gray-300">
+              {args.slideNumber ? `Membaca Slide #${args.slideNumber}` : (args.allSlides ? 'Membaca seluruh slide presentasi' : 'Membaca slide aktif')}
+            </div>
+          </div>
+        )}
+        {toolCall.name === 'read_sheet' && (
+          <div>
+            <div className="font-semibold text-blue-500">Membaca Lembar Kerja Excel</div>
+            <div className="text-[11px] text-gray-600 dark:text-gray-300">
+              {args.range ? `Range: ${args.range}` : 'Membaca area data aktif'}
+            </div>
+          </div>
+        )}
+        {toolCall.name !== 'write_cells' &&
+          toolCall.name !== 'format_range' &&
+          toolCall.name !== 'create_chart' &&
+          toolCall.name !== 'insert_chart_image' &&
+          toolCall.name !== 'insert_page_break' &&
+          toolCall.name !== 'find_and_replace' &&
+          toolCall.name !== 'create_slide' &&
+          toolCall.name !== 'create_presentation_deck' &&
+          toolCall.name !== 'read_slides' &&
+          toolCall.name !== 'read_sheet' && (
           <pre className="whitespace-pre-wrap">{JSON.stringify(args, null, 2)}</pre>
         )}
       </div>
@@ -69,9 +142,9 @@ export const ActionCard: React.FC<ActionCardProps> = ({ toolCall, onApply, isExe
           disabled={isExecuting}
           className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium flex items-center justify-center gap-1.5 transition disabled:opacity-50"
         >
-          {isExecuting ? 'Menerapkan...' : (
+          {isExecuting ? (toolCall.name.startsWith('read_') ? 'Membaca...' : 'Menerapkan...') : (
             <>
-              <Play className="w-3 h-3 fill-current" /> Terapkan ke Dokumen
+              <Play className="w-3 h-3 fill-current" /> {toolCall.name.startsWith('read_') ? 'Baca Data Sekarang' : 'Terapkan ke Dokumen'}
             </>
           )}
         </button>
