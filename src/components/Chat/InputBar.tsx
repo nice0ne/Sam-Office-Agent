@@ -1,19 +1,24 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
 import { Send, Sparkles, Loader2, Mic, MicOff } from 'lucide-react';
 import { useSpeechRecognition, SpeechLanguage } from '../../hooks/useSpeechRecognition';
+import { QuickActionPresets } from './QuickActionPresets';
+import { HostType } from '../../types';
 
 export interface InputBarProps {
   onSendMessage: (text: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  host?: HostType;
 }
 
 export const InputBar: React.FC<InputBarProps> = ({
   onSendMessage,
   disabled,
   placeholder = 'Tanya Sam atau perintahkan sesuatu...',
+  host = 'Excel',
 }) => {
   const [input, setInput] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     isSupported,
@@ -22,6 +27,7 @@ export const InputBar: React.FC<InputBarProps> = ({
     setLanguage,
     toggleListening,
     stopListening,
+    resetTranscript,
     error: speechError,
   } = useSpeechRecognition({
     initialLanguage: 'id-ID',
@@ -30,6 +36,24 @@ export const InputBar: React.FC<InputBarProps> = ({
     },
   });
 
+  // Auto-adjust height up to 128px
+  useEffect(() => {
+    if (textareaRef.current && typeof textareaRef.current.scrollHeight === 'number') {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(Math.max(textareaRef.current.scrollHeight, 24), 128);
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
+
+  const handleToggleVoice = () => {
+    if (disabled) return;
+    if (!isListening) {
+      setInput('');
+      resetTranscript();
+    }
+    toggleListening();
+  };
+
   const handleSend = () => {
     if (!input.trim() || disabled) return;
     if (isListening) {
@@ -37,9 +61,13 @@ export const InputBar: React.FC<InputBarProps> = ({
     }
     onSendMessage(input.trim());
     setInput('');
+    resetTranscript();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -59,6 +87,11 @@ export const InputBar: React.FC<InputBarProps> = ({
 
   return (
     <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 transition-colors">
+      <QuickActionPresets
+        host={host}
+        onSelectPreset={prompt => onSendMessage(prompt)}
+        disabled={disabled}
+      />
       {speechError && (
         <div className="mb-2 px-2.5 py-1 text-xs rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center justify-between">
           <span>
@@ -70,16 +103,17 @@ export const InputBar: React.FC<InputBarProps> = ({
           </span>
         </div>
       )}
-      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm transition-all">
-        <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
-        <input
-          type="text"
+      <div className="flex items-end gap-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 shadow-sm transition-all">
+        <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mb-1.5" />
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={Boolean(disabled)}
           placeholder={currentPlaceholder}
-          className="w-full bg-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none disabled:opacity-60"
+          className="w-full bg-transparent text-xs text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none disabled:opacity-60 resize-none min-h-[24px] max-h-32 py-1 leading-relaxed"
         />
 
         {/* Language selector toggle */}
@@ -89,7 +123,7 @@ export const InputBar: React.FC<InputBarProps> = ({
           disabled={Boolean(disabled)}
           aria-label="Pilihan Bahasa Suara"
           title={`Ganti bahasa perintah suara (${language === 'id-ID' ? 'Bahasa Indonesia' : 'English'})`}
-          className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-40 transition shrink-0"
+          className="px-1.5 py-0.5 mb-0.5 text-[10px] font-semibold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-40 transition shrink-0"
         >
           {language === 'id-ID' ? 'ID' : 'EN'}
         </button>
@@ -97,7 +131,7 @@ export const InputBar: React.FC<InputBarProps> = ({
         {/* Voice Command Microphone button */}
         <button
           type="button"
-          onClick={toggleListening}
+          onClick={handleToggleVoice}
           disabled={Boolean(disabled)}
           aria-label="Perintah Suara"
           title={
@@ -107,7 +141,7 @@ export const InputBar: React.FC<InputBarProps> = ({
               ? 'Hentikan merekam suara'
               : 'Mulai perintah suara'
           }
-          className={`p-1.5 rounded-lg transition shrink-0 ${
+          className={`p-1.5 mb-0.5 rounded-lg transition shrink-0 ${
             isListening
               ? 'bg-red-500 text-white animate-pulse shadow-sm shadow-red-500/50'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40'
@@ -126,7 +160,7 @@ export const InputBar: React.FC<InputBarProps> = ({
           onClick={handleSend}
           disabled={Boolean(!input.trim() || disabled)}
           aria-label="Kirim Pesan"
-          className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
+          className="p-1.5 mb-0.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
         >
           {disabled ? (
             <Loader2 className="w-4 h-4 animate-spin text-blue-500" />

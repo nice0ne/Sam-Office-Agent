@@ -27,6 +27,11 @@ export interface ChatMessage {
   isError?: boolean;
   status?: 'sending' | 'streaming' | 'done' | 'error';
   error?: string;
+  stepProgress?: {
+    step: number;
+    maxSteps: number;
+    description?: string;
+  };
 }
 
 export interface ToolProperty {

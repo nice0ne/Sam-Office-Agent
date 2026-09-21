@@ -9,6 +9,7 @@ import {
 } from '../src/services/storage/settingsStorage';
 import * as llmFactory from '../src/services/llm/factory';
 import * as officeModule from '../src/services/office';
+import { documentContextCache } from '../src/services/office/contextCache';
 import { ToolCall, HostType } from '../src/types';
 import { ILLMProvider, StreamEvent } from '../src/services/llm/types';
 
@@ -99,6 +100,7 @@ function createHookHarness<P>(Component: React.FC<P>, initialProps: P) {
 beforeEach(() => {
   localStorage.clear();
   setExecutionMode('copilot');
+  documentContextCache.invalidate();
   officeModule.resetOfficeDriver();
   delete (globalThis as any).window;
   delete (globalThis as any).Office;
@@ -107,6 +109,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  documentContextCache.invalidate();
   officeModule.resetOfficeDriver();
   delete (globalThis as any).window;
   delete (globalThis as any).Office;
@@ -481,6 +484,102 @@ describe('Copilot Mode Tool Call Workflow (Preview & Manual Apply)', () => {
     expect(toolCall.status).toBe('failed');
     expect(toolCall.error).toBeDefined();
   });
+
+  it('triggers continuation when read_sheet tool call is applied', async () => {
+    vi.useFakeTimers();
+    try {
+      const readToolCall: ToolCall = {
+        id: 'tc-read-1',
+        name: 'read_sheet',
+        arguments: { range: 'C1:C147' },
+        status: 'pending',
+      };
+
+      async function* mockStream(): AsyncIterable<StreamEvent> {
+        yield { type: 'tool_call', toolCall: readToolCall };
+        yield { type: 'done' };
+      }
+
+      const mockProvider: ILLMProvider = {
+        id: 'gemini',
+        name: 'Google Gemini',
+        sendMessage: vi.fn().mockReturnValue(mockStream()),
+        testConnection: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
+      };
+      vi.spyOn(llmFactory, 'getLLMProvider').mockReturnValue(mockProvider);
+
+      const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+      let vdom = harness.render();
+
+      const inputBar = vdom.props.children[2];
+      await inputBar.props.onSendMessage('summary by kota, dan buat chartnya');
+
+      vdom = harness.render();
+      const chatContainer = vdom.props.children[1];
+      const toolCall = chatContainer.props.messages[2].toolCalls![0];
+
+      await chatContainer.props.onApplyToolCall(toolCall);
+      expect(toolCall.status).toBe('applied');
+
+      // Fast forward timer to trigger continuation
+      await vi.advanceTimersByTimeAsync(150);
+
+      vdom = harness.render();
+      expect(mockProvider.sendMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('triggers agentic continuation loop automatically when read_slides is applied in PowerPoint', async () => {
+    vi.useFakeTimers();
+    try {
+      const readSlidesToolCall: ToolCall = {
+        id: 'tc-read-slides-1',
+        name: 'read_slides',
+        arguments: { slideNumber: 1 },
+        status: 'pending',
+      };
+
+      async function* mockStream(): AsyncIterable<StreamEvent> {
+        yield { type: 'tool_call', toolCall: readSlidesToolCall };
+        yield { type: 'done' };
+      }
+
+      const mockProvider: ILLMProvider = {
+        id: 'gemini',
+        name: 'Google Gemini',
+        sendMessage: vi.fn().mockReturnValue(mockStream()),
+        testConnection: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
+      };
+      vi.spyOn(llmFactory, 'getLLMProvider').mockReturnValue(mockProvider);
+
+      const mockDriver = new officeModule.MockOfficeDriver();
+      await mockDriver.createSlide('Judul Presentasi Keren', ['Poin A', 'Poin B']);
+      officeModule.setOfficeDriver(mockDriver);
+
+      const harness = createHookHarness(App, { initialHost: 'PowerPoint' as HostType });
+      let vdom = harness.render();
+
+      const inputBar = vdom.props.children[2];
+      await inputBar.props.onSendMessage('baca slide ini buat summary');
+
+      vdom = harness.render();
+      const chatContainer = vdom.props.children[1];
+      const toolCall = chatContainer.props.messages[2].toolCalls![0];
+
+      await chatContainer.props.onApplyToolCall(toolCall);
+      expect(toolCall.status).toBe('applied');
+
+      // Fast forward timer to trigger continuation
+      await vi.advanceTimersByTimeAsync(150);
+
+      vdom = harness.render();
+      expect(mockProvider.sendMessage).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('Autopilot Mode Tool Call Workflow (Direct Auto Apply)', () => {
@@ -528,6 +627,97 @@ describe('Autopilot Mode Tool Call Workflow (Direct Auto Apply)', () => {
     // In autopilot mode, status should be automatically applied without calling onApplyToolCall manually!
     expect(assistantMsg.toolCalls?.[0].status).toBe('applied');
     expect(writeCellsSpy).toHaveBeenCalledWith('B5', undefined, [['=AVERAGE(B1:B4)']]);
+  });
+});
+
+describe('ReAct Execution Engine & Document Cache Integration in App', () => {
+  beforeEach(() => {
+    setExecutionMode('autopilot');
+    documentContextCache.invalidate();
+  });
+
+  it('uses cached document context and avoids redundant driver reads', async () => {
+    const mockDriver = new officeModule.MockOfficeDriver();
+    const readSpy = vi.spyOn(mockDriver, 'readActiveSheetData');
+    officeModule.setOfficeDriver(mockDriver);
+
+    // Seed cache
+    documentContextCache.set('Excel', {
+      host: 'Excel',
+      documentSummary: 'Cached Sheet Summary',
+    });
+
+    async function* mockStream(): AsyncIterable<StreamEvent> {
+      yield { type: 'content_delta', delta: 'Jawaban dari context cache' };
+      yield { type: 'done' };
+    }
+
+    const mockProvider: ILLMProvider = {
+      id: 'gemini',
+      name: 'Google Gemini',
+      sendMessage: vi.fn().mockReturnValue(mockStream()),
+      testConnection: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
+    };
+    vi.spyOn(llmFactory, 'getLLMProvider').mockReturnValue(mockProvider);
+
+    const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+    let vdom = harness.render();
+
+    const inputBar = vdom.props.children[2];
+    await inputBar.props.onSendMessage('Ringkas');
+
+    expect(readSpy).not.toHaveBeenCalled();
+    expect(mockProvider.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining('Cached Sheet Summary'),
+      }),
+      expect.anything()
+    );
+  });
+
+  it('invalidates document context cache when a writing tool executes', async () => {
+    documentContextCache.set('Excel', {
+      host: 'Excel',
+      documentSummary: 'Previous Sheet Data',
+    });
+    expect(documentContextCache.get('Excel')).not.toBeNull();
+
+    const autoToolCall: ToolCall = {
+      id: 'tc-clean-1',
+      name: 'clean_data',
+      arguments: { removeDuplicates: true },
+      status: 'pending',
+    };
+
+    async function* mockStream(): AsyncIterable<StreamEvent> {
+      yield { type: 'tool_call', toolCall: autoToolCall };
+      yield { type: 'done' };
+    }
+
+    const mockProvider: ILLMProvider = {
+      id: 'gemini',
+      name: 'Google Gemini',
+      sendMessage: vi.fn().mockReturnValue(mockStream()),
+      testConnection: vi.fn().mockResolvedValue({ success: true, message: 'OK' }),
+    };
+    vi.spyOn(llmFactory, 'getLLMProvider').mockReturnValue(mockProvider);
+
+    const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+    let vdom = harness.render();
+
+    const inputBar = vdom.props.children[2];
+    await inputBar.props.onSendMessage('Bersihkan tabel');
+
+    // Cache should be invalidated automatically by ReAct engine
+    expect(documentContextCache.get('Excel')).toBeNull();
+  });
+
+  it('renders QuickActionPresets toolbar above input in App SSR view', () => {
+    const html = renderToString(<App initialHost="Excel" />);
+    expect(html).toContain('Quick Action Presets');
+    expect(html).toContain('Bersihkan Data');
+    expect(html).toContain('Rekap &amp; Chart');
+    expect(html).toContain('Format &amp; Color Scale');
   });
 });
 

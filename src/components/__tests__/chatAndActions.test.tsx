@@ -5,6 +5,7 @@ import { ActionCard } from '../Actions/ActionCard';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { InputBar } from '../Chat/InputBar';
 import { ChatContainer } from '../Chat/ChatContainer';
+import { QuickActionPresets } from '../Chat/QuickActionPresets';
 import { ToolCall, ChatMessage } from '../../types';
 
 // Helper to strip React SSR comments from html output
@@ -388,6 +389,51 @@ describe('MessageBubble Component', () => {
     await copyButton.props.onClick();
     expect(writeText).toHaveBeenCalledWith(userMessage.content);
   });
+
+  it('renders download button on assistant messages and triggers file download', () => {
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    const mockDoc = {
+      createElement: vi.fn().mockReturnValue(mockLink),
+      body: {
+        appendChild: vi.fn(),
+        removeChild: vi.fn(),
+      },
+    };
+    const origDoc = (globalThis as any).document;
+    const origURL = (globalThis as any).URL;
+    (globalThis as any).document = mockDoc;
+    (globalThis as any).URL = {
+      createObjectURL: vi.fn().mockReturnValue('blob:mock-url'),
+      revokeObjectURL: vi.fn(),
+    };
+
+    try {
+      const harness = createHookHarness(MessageBubble, {
+        message: assistantMessage,
+        onApplyToolCall: () => {},
+      });
+      const vdom = harness.render();
+      const downloadButton = findElement(
+        vdom,
+        el => el.type === 'button' && (el.props['aria-label'] === 'Unduh file' || el.props.title?.includes('Unduh'))
+      );
+      expect(downloadButton).toBeDefined();
+
+      downloadButton.props.onClick();
+      expect((globalThis as any).URL.createObjectURL).toHaveBeenCalled();
+      expect(mockDoc.body.appendChild).toHaveBeenCalled();
+      expect(mockLink.click).toHaveBeenCalled();
+      expect(mockDoc.body.removeChild).toHaveBeenCalled();
+      expect((globalThis as any).URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    } finally {
+      (globalThis as any).document = origDoc;
+      (globalThis as any).URL = origURL;
+    }
+  });
 });
 
 describe('InputBar Component', () => {
@@ -410,7 +456,7 @@ describe('InputBar Component', () => {
 
     // Initial render
     let vdom = harness.render();
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
     const buttonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(buttonEl.props.disabled).toBe(true);
 
@@ -419,7 +465,7 @@ describe('InputBar Component', () => {
 
     // Re-render after state update
     vdom = harness.render();
-    const updatedInputEl = findElement(vdom, el => el.type === 'input');
+    const updatedInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
     const updatedButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(updatedInputEl.props.value).toBe('  Buatkan chart dari kolom A ke D  ');
     expect(updatedButtonEl.props.disabled).toBe(false);
@@ -433,7 +479,7 @@ describe('InputBar Component', () => {
 
     // Re-render to confirm input is reset to empty string
     vdom = harness.render();
-    const resetInputEl = findElement(vdom, el => el.type === 'input');
+    const resetInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
     const resetButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
     expect(resetInputEl.props.value).toBe('');
     expect(resetButtonEl.props.disabled).toBe(true);
@@ -444,12 +490,12 @@ describe('InputBar Component', () => {
     const harness = createHookHarness(InputBar, { onSendMessage });
 
     let vdom = harness.render();
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     // Type text
     inputEl.props.onChange({ target: { value: 'Hitung rata-rata C1:C10' } });
     vdom = harness.render();
-    const updatedInputEl = findElement(vdom, el => el.type === 'input');
+    const updatedInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     // Press Enter
     const preventDefault = vi.fn();
@@ -465,11 +511,11 @@ describe('InputBar Component', () => {
     const harness = createHookHarness(InputBar, { onSendMessage });
 
     let vdom = harness.render();
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     inputEl.props.onChange({ target: { value: 'Baris pertama' } });
     vdom = harness.render();
-    const updatedInputEl = findElement(vdom, el => el.type === 'input');
+    const updatedInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     const preventDefault = vi.fn();
     updatedInputEl.props.onKeyDown({ key: 'Enter', shiftKey: true, preventDefault });
@@ -483,12 +529,12 @@ describe('InputBar Component', () => {
     const harness = createHookHarness(InputBar, { onSendMessage });
 
     let vdom = harness.render();
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     inputEl.props.onChange({ target: { value: '     ' } });
     vdom = harness.render();
     const updatedButtonEl = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Kirim Pesan');
-    const updatedInputEl = findElement(vdom, el => el.type === 'input');
+    const updatedInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     expect(updatedButtonEl.props.disabled).toBe(true);
     updatedButtonEl.props.onClick();
@@ -503,7 +549,7 @@ describe('InputBar Component', () => {
     const harness = createHookHarness(InputBar, { onSendMessage, disabled: true });
 
     let vdom = harness.render();
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
     const buttonEl = findElement(vdom, el => el.type === 'button');
 
     expect(inputEl.props.disabled).toBe(true);
@@ -513,7 +559,7 @@ describe('InputBar Component', () => {
     inputEl.props.onChange({ target: { value: 'Test message' } });
     vdom = harness.render();
     const updatedButtonEl = findElement(vdom, el => el.type === 'button');
-    const updatedInputEl = findElement(vdom, el => el.type === 'input');
+    const updatedInputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
 
     expect(updatedButtonEl.props.disabled).toBe(true);
     updatedButtonEl.props.onClick();
@@ -592,8 +638,49 @@ describe('InputBar Component', () => {
     });
     vdom = harness.render();
 
-    const inputEl = findElement(vdom, el => el.type === 'input');
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
     expect(inputEl.props.value).toContain('buatkan grafik baris');
+  });
+
+  it('clears input text and resets transcript when clicking microphone to start new recording', () => {
+    let mockInstance: any = null;
+    class MockSpeech {
+      continuous = false;
+      interimResults = false;
+      lang = 'id-ID';
+      onstart: any = null;
+      onend: any = null;
+      onresult: any = null;
+      constructor() {
+        mockInstance = this;
+      }
+      start = vi.fn().mockImplementation(() => {
+        if (this.onstart) this.onstart();
+      });
+      stop = vi.fn().mockImplementation(() => {
+        if (this.onend) this.onend();
+      });
+    }
+    (globalThis as any).webkitSpeechRecognition = MockSpeech;
+
+    const onSendMessage = vi.fn();
+    const harness = createHookHarness(InputBar, { onSendMessage });
+    let vdom = harness.render();
+
+    // Type some text first or have previous input
+    const inputEl = findElement(vdom, el => el.type === 'textarea' || el.type === 'input');
+    inputEl.props.onChange({ target: { value: 'teks lama' } });
+    vdom = harness.render();
+    expect(findElement(vdom, el => el.type === 'textarea' || el.type === 'input').props.value).toBe('teks lama');
+
+    // Click mic button to start a new voice session
+    const micButton = findElement(vdom, el => el.props && el.props['aria-label'] === 'Perintah Suara');
+    micButton.props.onClick();
+    vdom = harness.render();
+
+    // Input must be cleared upon starting new voice recognition
+    expect(findElement(vdom, el => el.type === 'textarea' || el.type === 'input').props.value).toBe('');
+    expect(mockInstance.start).toHaveBeenCalled();
   });
 });
 
@@ -701,5 +788,172 @@ describe('ChatContainer Component', () => {
     });
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+  });
+});
+
+describe('QuickActionPresets Component', () => {
+  it('renders QuickActionPresets for Excel and triggers preset prompt on click', () => {
+    const onSelectPreset = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'Excel',
+      onSelectPreset,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    expect(buttons.length).toBe(3);
+
+    const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
+    expect(cleanButton).toBeDefined();
+
+    cleanButton.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Bersihkan data di tabel aktif: hapus duplikat, rapikan spasi berlebih, dan isi sel yang kosong.'
+    );
+
+    const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelectPreset} />);
+    expect(html).toContain('Bersihkan Data');
+    expect(html).toContain('Rekap &amp; Chart');
+    expect(html).toContain('Format &amp; Color Scale');
+  });
+
+  it('renders QuickActionPresets for Word with correct labels and prompts', () => {
+    const onSelectPreset = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'Word',
+      onSelectPreset,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    expect(buttons.length).toBe(3);
+
+    const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
+    expect(momButton).toBeDefined();
+    momButton.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Buatkan dokumen terstruktur Notulen Rapat (Minutes of Meeting) lengkap dengan agenda, pembahasan, dan action items.'
+    );
+
+    const html = renderToString(<QuickActionPresets host="Word" onSelectPreset={onSelectPreset} />);
+    expect(html).toContain('Notulen Rapat (MoM)');
+    expect(html).toContain('Buat SOP');
+    expect(html).toContain('Poles Bahasa &amp; EYD');
+  });
+
+  it('renders QuickActionPresets for PowerPoint with correct labels and prompts', () => {
+    const onSelectPreset = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'PowerPoint',
+      onSelectPreset,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    expect(buttons.length).toBe(3);
+
+    const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
+    expect(deckButton).toBeDefined();
+    deckButton.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Buatkan 3 slide presentasi terstruktur: Slide 1 Judul Cover, Slide 2 Poin Materi Utama, Slide 3 Key Metrics Capaian.'
+    );
+
+    const html = renderToString(<QuickActionPresets host="PowerPoint" onSelectPreset={onSelectPreset} />);
+    expect(html).toContain('Buat Deck 3 Slide');
+    expect(html).toContain('Ringkas Seluruh Slide');
+    expect(html).toContain('Catatan Pemateri');
+  });
+
+  it('disables all preset buttons when disabled prop is true', () => {
+    const onSelectPreset = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'Excel',
+      onSelectPreset,
+      disabled: true,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    expect(buttons.every(b => b.props.disabled === true)).toBe(true);
+
+    const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelectPreset} disabled={true} />);
+    expect(html).toContain('disabled=""');
+  });
+});
+
+describe('InputBar & QuickActionPresets Integration', () => {
+  it('renders QuickActionPresets in InputBar and clicking preset triggers onSendMessage', () => {
+    const onSendMessage = vi.fn();
+    const harness = createHookHarness(InputBar, {
+      onSendMessage,
+      host: 'Excel',
+    });
+    const vdom = harness.render();
+
+    const presetsComponent = findElement(vdom, el => el.type === QuickActionPresets);
+    expect(presetsComponent).toBeDefined();
+    expect(presetsComponent.props.host).toBe('Excel');
+
+    // Simulate preset click
+    presetsComponent.props.onSelectPreset('Bersihkan data di tabel aktif');
+    expect(onSendMessage).toHaveBeenCalledWith('Bersihkan data di tabel aktif');
+  });
+});
+
+describe('MessageBubble ReAct Step and Tool Badges', () => {
+  it('renders ReAct step badge when stepProgress is defined on message', () => {
+    const msg: ChatMessage = {
+      id: 'step_msg_1',
+      role: 'assistant',
+      content: 'Menganalisis langkah...',
+      timestamp: 100,
+      stepProgress: { step: 2, maxSteps: 6, description: 'Mengeksekusi tool clean_data...' },
+    };
+
+    const html = renderToString(
+      <MessageBubble message={msg} onApplyToolCall={() => {}} />
+    );
+    expect(html).toContain('Iterasi ReAct [2/6]');
+    expect(html).toContain('Mengeksekusi tool clean_data...');
+  });
+
+  it('renders ReAct tool result badge when message role is tool', () => {
+    const toolMsg: ChatMessage = {
+      id: 'tool_msg_1',
+      role: 'tool',
+      toolName: 'clean_data',
+      content: 'Berhasil membersihkan 15 baris data duplikat.',
+      timestamp: 101,
+      isError: false,
+    };
+
+    const html = renderToString(
+      <MessageBubble message={toolMsg} onApplyToolCall={() => {}} />
+    );
+    expect(html).toContain('Tool Result');
+    expect(html).toContain('clean_data');
+    expect(html).toContain('Berhasil membersihkan 15 baris data duplikat.');
+  });
+
+  it('renders ReAct tool error badge when message role is tool with isError true', () => {
+    const toolErrorMsg: ChatMessage = {
+      id: 'tool_msg_err',
+      role: 'tool',
+      toolName: 'apply_conditional_formatting',
+      content: 'Error: Range tidak valid',
+      timestamp: 102,
+      isError: true,
+    };
+
+    const html = renderToString(
+      <MessageBubble message={toolErrorMsg} onApplyToolCall={() => {}} />
+    );
+    expect(html).toContain('Tool Error');
+    expect(html).toContain('apply_conditional_formatting');
+    expect(html).toContain('Error: Range tidak valid');
   });
 });
