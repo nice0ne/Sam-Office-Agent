@@ -29,6 +29,41 @@ describe('MockOfficeDriver', () => {
     await expect(driver.createChart('columnClustered', 'A1:B2', 'Sales Chart')).resolves.toBeUndefined();
   });
 
+  it('handles cleanData operation with trimming, deduplication, and empty filling', async () => {
+    await driver.writeCells('A1:B4', [
+      [' Nama ', ' Nilai '],
+      [' Andi ', ''],
+      [' Budi ', 80],
+      [' Andi ', ''],
+    ]);
+
+    const result = await driver.cleanData({
+      range: 'A1:B4',
+      trimWhitespace: true,
+      removeDuplicates: true,
+      fillEmptyValues: 0,
+    });
+
+    expect(result.removedDuplicatesCount).toBe(1);
+    expect(result.trimmedCellsCount).toBeGreaterThan(0);
+    expect(result.filledCellsCount).toBe(2);
+    expect(result.cleanedRows).toBe(3);
+
+    const updated = await driver.readActiveRange();
+    expect(updated.values[1][0]).toBe('Andi');
+    expect(updated.values[1][1]).toBe(0);
+  });
+
+  it('handles applyConditionalFormatting on mock driver', async () => {
+    const res = await driver.applyConditionalFormatting({
+      range: 'B2:B10',
+      type: 'data_bar',
+      color: '#3B82F6',
+    });
+    expect(res.success).toBe(true);
+    expect(res.rule).toBe('data_bar on B2:B10');
+  });
+
   it('handles Word content insertion and selection replacement', async () => {
     await driver.insertContent('start', 'Halo Dunia', 'paragraph');
     const outline = await driver.getWordOutline();

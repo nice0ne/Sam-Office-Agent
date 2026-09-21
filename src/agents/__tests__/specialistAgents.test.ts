@@ -17,6 +17,8 @@ describe('Specialist Agents Tools & Prompts', () => {
     expect(toolNames).toContain('write_cells');
     expect(toolNames).toContain('format_range');
     expect(toolNames).toContain('create_chart');
+    expect(toolNames).toContain('clean_data');
+    expect(toolNames).toContain('apply_conditional_formatting');
     expect(agent.id).toBe('excel-specialist');
     expect(agent.hostType).toBe('Excel');
   });
@@ -165,6 +167,92 @@ describe('Specialist Agents Tools & Prompts', () => {
       );
       expect(result.success).toBe(true);
       expect(result.result).toContain('Grafik ColumnClustered berhasil dibuat!');
+    });
+
+    it('executes clean_data tool and removes duplicate rows', async () => {
+      const mockDriver = new MockOfficeDriver();
+      await mockDriver.writeCells('A1:B4', [
+        ['Nama', 'Kota'],
+        ['Andi', 'Jakarta '],
+        ['Budi', 'Bandung'],
+        ['Andi', 'Jakarta '],
+      ]);
+      setOfficeDriver(mockDriver);
+
+      const res = await agent.executeTool(
+        {
+          id: 'c1',
+          name: 'clean_data',
+          arguments: { range: 'A1:B4', removeDuplicates: true, trimWhitespace: true },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toBeDefined();
+      expect(res.result).toContain('1 baris duplikat dihapus');
+      expect(res.result).toContain('2 sel dirapikan');
+
+      const updated = await mockDriver.readActiveRange();
+      expect(updated.values.length).toBe(3);
+      expect(updated.values[1][1]).toBe('Jakarta');
+    });
+
+    it('executes clean_data tool with default arguments and fills empty cells', async () => {
+      const mockDriver = new MockOfficeDriver();
+      await mockDriver.writeCells('A1:B3', [
+        ['Nama', 'Skor'],
+        ['Andi', ''],
+        ['Budi', 90],
+      ]);
+      setOfficeDriver(mockDriver);
+
+      const res = await agent.executeTool(
+        {
+          id: 'c2',
+          name: 'clean_data',
+          arguments: { range: 'A1:B3', fillEmptyValues: 0 },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('1 sel kosong diisi');
+
+      const updated = await mockDriver.readActiveRange();
+      expect(updated.values[1][1]).toBe(0);
+    });
+
+    it('executes apply_conditional_formatting tool', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'cf1',
+          name: 'apply_conditional_formatting',
+          arguments: { range: 'A1:A10', type: 'color_scale' },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('color_scale');
+    });
+
+    it('fails apply_conditional_formatting when range or type is missing', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'cf-err',
+          name: 'apply_conditional_formatting',
+          arguments: { range: 'A1:A10' },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('wajib diisi');
     });
 
     it('returns error for unknown tool', async () => {
