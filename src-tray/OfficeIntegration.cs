@@ -266,29 +266,47 @@ namespace SamOfficeAgent
         /// </summary>
         public static string FindDeveloperCaCertPath()
         {
-            // 1. Check local application directory certs/ca.crt
-            string localCerts = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certs", "ca.crt");
-            if (File.Exists(localCerts))
-            {
-                return localCerts;
-            }
-
-            // 2. Check local application directory ca.crt
-            string localCa = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ca.crt");
-            if (File.Exists(localCa))
-            {
-                return localCa;
-            }
-
-            // 3. Check user profile ~/.office-addin-dev-certs/ca.crt
+            // 1. Check user profile ~/.office-addin-dev-certs/ca.crt
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             string devCert = Path.Combine(userProfile, ".office-addin-dev-certs", "ca.crt");
-            if (File.Exists(devCert))
+            if (File.Exists(devCert) && IsCertFileValid(devCert))
             {
                 return devCert;
             }
 
+            // 2. Check local application directory certs/ca.crt
+            string localCerts = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "certs", "ca.crt");
+            if (File.Exists(localCerts) && IsCertFileValid(localCerts))
+            {
+                return localCerts;
+            }
+
+            // 3. Check local application directory ca.crt
+            string localCa = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ca.crt");
+            if (File.Exists(localCa) && IsCertFileValid(localCa))
+            {
+                return localCa;
+            }
+
+            // Fallback to any existing certificate file
+            if (File.Exists(devCert)) return devCert;
+            if (File.Exists(localCerts)) return localCerts;
+            if (File.Exists(localCa)) return localCa;
+
             return null;
+        }
+
+        private static bool IsCertFileValid(string certPath)
+        {
+            try
+            {
+                X509Certificate2 cert = new X509Certificate2(certPath);
+                return DateTime.Now >= cert.NotBefore && DateTime.Now <= cert.NotAfter;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>

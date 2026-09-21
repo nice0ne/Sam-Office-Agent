@@ -518,18 +518,27 @@ namespace SamOfficeAgent
             {
                 try
                 {
-                    return new X509Certificate2(path, pass, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+                    X509Certificate2 cert = new X509Certificate2(path, pass, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+                    if (DateTime.Now >= cert.NotBefore && DateTime.Now <= cert.NotAfter)
+                    {
+                        return cert;
+                    }
                 }
                 catch { }
             }
             try
             {
-                return new X509Certificate2(path);
+                X509Certificate2 cert = new X509Certificate2(path);
+                if (DateTime.Now >= cert.NotBefore && DateTime.Now <= cert.NotAfter)
+                {
+                    return cert;
+                }
             }
             catch
             {
                 return null;
             }
+            return null;
         }
 
         internal static bool GenerateSelfSignedCertificate(string pfxPath, string password)
@@ -540,13 +549,16 @@ namespace SamOfficeAgent
                 Directory.CreateDirectory(certDir);
             }
 
+            string caPath = Path.Combine(certDir, "ca.crt");
             string script = string.Format(
                 "$cert = New-SelfSignedCertificate -DnsName '127.0.0.1','localhost' -CertStoreLocation 'Cert:\\CurrentUser\\My' -NotAfter (Get-Date).AddYears(1); " +
                 "$pwd = ConvertTo-SecureString '{0}' -Force -AsPlainText; " +
                 "Export-PfxCertificate -Cert $cert -FilePath '{1}' -Password $pwd | Out-Null; " +
+                "Export-Certificate -Cert $cert -FilePath '{2}' -Force | Out-Null; " +
                 "Remove-Item ('Cert:\\CurrentUser\\My\\' + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue",
                 password.Replace("'", "''"),
-                pfxPath.Replace("'", "''")
+                pfxPath.Replace("'", "''"),
+                caPath.Replace("'", "''")
             );
 
             try
@@ -570,7 +582,12 @@ namespace SamOfficeAgent
             string pfxPath = Path.Combine(certDir, "localhost.pfx");
             if (GenerateSelfSignedCertificate(pfxPath, "testpass123"))
             {
-                return TryLoadPfx(pfxPath);
+                X509Certificate2 cert = TryLoadPfx(pfxPath);
+                if (cert != null)
+                {
+                    OfficeIntegration.EnsureCertificateInstalled(cert);
+                    return cert;
+                }
             }
 
             throw new InvalidOperationException("Tidak dapat menemukan atau membuat sertifikat SSL untuk localhost.");

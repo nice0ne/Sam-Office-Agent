@@ -81,10 +81,10 @@ $devCa = Join-Path $devCertsDir "ca.crt"
 $devCrt = Join-Path $devCertsDir "localhost.crt"
 $devKey = Join-Path $devCertsDir "localhost.key"
 
-# Copy ca.crt from ~/.office-addin-dev-certs if present
-if ((Test-Path $devCa) -and (!(Test-Path $caCrtPath))) {
+# Sync ca.crt from ~/.office-addin-dev-certs if present
+if (Test-Path $devCa) {
     Copy-Item -Path $devCa -Destination $caCrtPath -Force
-    Write-Host "  -> Copied CA certificate from ~/.office-addin-dev-certs/ca.crt" -ForegroundColor Green
+    Write-Host "  -> Synced CA certificate from ~/.office-addin-dev-certs/ca.crt" -ForegroundColor Green
 }
 
 # Locate openssl if available on system or Git
@@ -104,8 +104,31 @@ foreach ($o in $potentialOpenssl) {
     }
 }
 
+# Determine if localhost.pfx needs generation or regeneration
+$needRegenPfx = $false
+if (Test-Path $localhostPfxPath) {
+    try {
+        $existingCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($localhostPfxPath, $pfxPassword)
+        $now = Get-Date
+        if ($now -lt $existingCert.NotBefore -or $now -ge $existingCert.NotAfter) {
+            Write-Host "  -> Existing certs/localhost.pfx is expired (valid to $($existingCert.NotAfter)). Regenerating..." -ForegroundColor Yellow
+            $needRegenPfx = $true
+        } elseif ((Test-Path $devCrt) -and ((Get-Item $devCrt).LastWriteTime -gt (Get-Item $localhostPfxPath).LastWriteTime)) {
+            Write-Host "  -> Newer dev cert detected in ~/.office-addin-dev-certs. Regenerating certs/localhost.pfx..." -ForegroundColor Cyan
+            $needRegenPfx = $true
+        }
+    } catch {
+        $needRegenPfx = $true
+    }
+} else {
+    $needRegenPfx = $true
+}
+
 # Create or export localhost.pfx
-if (!(Test-Path $localhostPfxPath)) {
+if ($needRegenPfx) {
+    if (Test-Path $localhostPfxPath) {
+        Remove-Item -Path $localhostPfxPath -Force -ErrorAction SilentlyContinue
+    }
     $pfxCreated = $false
 
     # Strategy A: Use openssl with office-addin-dev-certs if available
@@ -141,7 +164,7 @@ if (!(Test-Path $localhostPfxPath)) {
         throw "Failed to create or export localhost.pfx certificate."
     }
 } else {
-    Write-Host "  -> localhost.pfx already present in certs/." -ForegroundColor Green
+    Write-Host "  -> localhost.pfx is valid and up to date in certs/." -ForegroundColor Green
 }
 
 # Ensure ca.crt exists in certs/
@@ -198,13 +221,16 @@ Write-Host "  -> SamTrayServer.exe compiled successfully: $outExe" -ForegroundCo
 # 4. Stage distribution directory dist-release/
 Write-Host "`n[4/5] Staging distribution files into dist-release/..." -ForegroundColor Cyan
 $distReleaseDir = Join-Path $projectRoot "dist-release"
-if (Test-Path $distReleaseDir) {
-    Remove-Item -Path $distReleaseDir -Recurse -Force
+if (!(Test-Path $distReleaseDir)) {
+    New-Item -ItemType Directory -Path $distReleaseDir -Force | Out-Null
 }
-New-Item -ItemType Directory -Path $distReleaseDir -Force | Out-Null
 
 # Copy SamTrayServer.exe
-Copy-Item -Path $outExe -Destination (Join-Path $distReleaseDir "SamTrayServer.exe") -Force
+try {
+    Copy-Item -Path $outExe -Destination (Join-Path $distReleaseDir "SamTrayServer.exe") -Force -ErrorAction Stop
+} catch {
+    Write-Warning "dist-release/SamTrayServer.exe is locked by a running process. The new binary is ready at bin/SamTrayServer.exe."
+}
 
 # Copy manifest.xml
 $manifestPath = Join-Path $projectRoot "manifest.xml"
@@ -218,7 +244,11 @@ $distDir = Join-Path $projectRoot "dist"
 if (!(Test-Path $distDir)) {
     throw "Frontend dist directory not found at $distDir."
 }
-Copy-Item -Path $distDir -Destination (Join-Path $distReleaseDir "dist") -Recurse -Force
+$stagedDistDir = Join-Path $distReleaseDir "dist"
+if (Test-Path $stagedDistDir) {
+    Remove-Item -Path $stagedDistDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+Copy-Item -Path $distDir -Destination $stagedDistDir -Recurse -Force
 
 # Copy certs/
 Copy-Item -Path $certsDir -Destination (Join-Path $distReleaseDir "certs") -Recurse -Force
