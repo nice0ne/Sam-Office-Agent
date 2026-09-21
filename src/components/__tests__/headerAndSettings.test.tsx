@@ -317,7 +317,7 @@ describe('SettingsModal Component', () => {
     expect(cleaned).toContain('https://custom.openai.proxy/v1');
   });
 
-  it('allows switching provider tabs', () => {
+  it('allows switching provider via dropdown selector', () => {
     const harness = createHookHarness(SettingsModal, {
       isOpen: true,
       onClose: () => {},
@@ -326,17 +326,16 @@ describe('SettingsModal Component', () => {
 
     let vdom = harness.render();
     const modalContainer = vdom.props.children;
-    const tabsContainer = modalContainer.props.children[1];
-    const tabButtons = tabsContainer.props.children;
+    const providerMenu = modalContainer.props.children[1];
+    const providerSelect = providerMenu.props.children[1].props.children[0];
 
-    // Initially tab 0 is Gemini
+    // Initially provider 0 is Gemini
     const bodyContainer = modalContainer.props.children[2];
     const keyLabel = bodyContainer.props.children[0].props.children[0];
     expect(stripComments(renderToString(keyLabel))).toContain('API Key (Google Gemini)');
 
-    // Click tab 1 (OpenAI)
-    const openAiTab = tabButtons[1];
-    openAiTab.props.onClick();
+    // Select OpenAI from dropdown
+    providerSelect.props.onChange({ target: { value: 'openai' } });
 
     // Re-render
     vdom = harness.render();
@@ -448,11 +447,10 @@ describe('SettingsModal Component', () => {
     const geminiKeyInput = body.props.children[0].props.children[1];
     geminiKeyInput.props.onChange({ target: { value: 'gemini-multi-tab-key' } });
 
-    // 2. Switch tab to OpenAI
-    const tabsContainer = vdom.props.children.props.children[1];
-    const tabButtons = tabsContainer.props.children;
-    const openAiTab = tabButtons[1];
-    openAiTab.props.onClick();
+    // 2. Switch provider to OpenAI via dropdown
+    const providerMenu = vdom.props.children.props.children[1];
+    const providerSelect = providerMenu.props.children[1].props.children[0];
+    providerSelect.props.onChange({ target: { value: 'openai' } });
 
     // 3. Edit OpenAI config
     vdom = harness.render();
@@ -501,7 +499,7 @@ describe('SettingsModal Component', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('allows switching to openai-compatible tab and renders quick presets', () => {
+  it('allows switching to openai-compatible tab via dropdown and renders quick presets', () => {
     const harness = createHookHarness(SettingsModal, {
       isOpen: true,
       onClose: () => {},
@@ -510,15 +508,11 @@ describe('SettingsModal Component', () => {
 
     let vdom = harness.render();
     const modalContainer = vdom.props.children;
-    const tabsContainer = modalContainer.props.children[1];
-    const tabButtons = tabsContainer.props.children;
+    const providerMenu = modalContainer.props.children[1];
+    const providerSelect = providerMenu.props.children[1].props.children[0];
 
-    // Find the openai-compatible tab
-    const compatibleTab = tabButtons.find(
-      (btn: any) => btn.props.children === 'Compatible'
-    );
-    expect(compatibleTab).toBeDefined();
-    compatibleTab.props.onClick();
+    // Select openai-compatible from dropdown
+    providerSelect.props.onChange({ target: { value: 'openai-compatible' } });
 
     vdom = harness.render();
     const html = renderToString(vdom);

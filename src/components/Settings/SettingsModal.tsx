@@ -3,7 +3,7 @@ import { ProviderConfig, ProviderId } from '../../types';
 import { getSettings, saveSettings, setActiveProvider } from '../../services/storage/settingsStorage';
 import { testProviderConnection } from '../../services/llm/factory';
 import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from '../../utils/theme';
-import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck, Sun, Moon, Monitor } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck, Sun, Moon, Monitor, ChevronDown } from 'lucide-react';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   gemini: 'Gemini',
@@ -170,23 +170,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto text-xs">
-          {(Object.keys(settings.providers) as ProviderId[]).map(pid => (
-            <button
-              key={pid}
-              onClick={() => {
-                setActiveTab(pid);
+        {/* Provider Menu Dropdown */}
+        <div className="px-4 py-2.5 bg-gray-50/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+          <label htmlFor="byok-provider-dropdown" className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider shrink-0 flex items-center gap-1">
+            <span>Provider AI:</span>
+          </label>
+          <div className="relative flex-1 max-w-[240px]">
+            <select
+              id="byok-provider-dropdown"
+              value={activeTab}
+              aria-label="Pilih Provider BYOK"
+              onChange={e => {
+                setActiveTab(e.target.value as ProviderId);
                 setTestResult(null);
               }}
-              className={`px-3 py-2 whitespace-nowrap font-medium border-b-2 transition ${
-                activeTab === pid
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-              }`}
+              className="w-full text-xs font-semibold py-1.5 pl-3 pr-8 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs appearance-none cursor-pointer truncate"
             >
-              {settings.providers[pid].name.split(' ')[0]}
-            </button>
-          ))}
+              {(Object.keys(settings.providers) as ProviderId[]).map(pid => (
+                <option key={pid} value={pid}>
+                  {settings.providers[pid].name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+          </div>
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
