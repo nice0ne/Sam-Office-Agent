@@ -2,19 +2,35 @@ import {
   CleanDataOptions,
   CleanDataResult,
   ConditionalFormattingOptions,
+  DataStoryMetric,
+  DataStoryOptions,
+  DataStoryResult,
+  FormulaIssue,
   IDocumentDriver,
   PolishTextOptions,
+  SheetAuditResult,
   StructuredDocOptions,
   ThemedDeckOptions,
 } from './types';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
+  mockData?: any[][];
   private excelGrid: Record<string, any[][]> = {};
   private wordContent: string[] = [];
   private slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
 
   async readActiveRange() {
+    if (this.mockData && this.mockData.length > 0) {
+      const rowCount = this.mockData.length;
+      const colCount = this.mockData[0]?.length || 1;
+      const endCol = colIndexToLetter(colCount - 1);
+      return {
+        address: `A1:${endCol}${rowCount}`,
+        values: this.mockData,
+        formulas: this.mockData.map((row: any[]) => (Array.isArray(row) ? row.map(() => '') : [''])),
+      };
+    }
     const writtenKeys = Object.keys(this.excelGrid);
     if (writtenKeys.length > 0) {
       const lastKey = writtenKeys[writtenKeys.length - 1];
@@ -181,6 +197,38 @@ export class MockOfficeDriver implements IDocumentDriver {
     };
   }
 
+  async auditSheetData(options?: { range?: string }): Promise<SheetAuditResult> {
+    let values: any[][];
+    let formulas: string[][] = [];
+
+    if (options?.range && this.excelGrid[options.range]) {
+      values = this.excelGrid[options.range];
+    } else if (this.mockData) {
+      values = this.mockData;
+    } else {
+      const res = await this.readActiveRange();
+      values = res.values;
+      formulas = res.formulas;
+    }
+
+    return performSheetAudit('Sheet1', values, formulas, 0, 0);
+  }
+
+  async generateDataStory(options?: DataStoryOptions): Promise<DataStoryResult> {
+    let values: any[][];
+
+    if (options?.range && this.excelGrid[options.range]) {
+      values = this.excelGrid[options.range];
+    } else if (this.mockData) {
+      values = this.mockData;
+    } else {
+      const res = await this.readActiveRange();
+      values = res.values;
+    }
+
+    return buildDataStoryFromResult(values, options);
+  }
+
   async getWordOutline() {
     return this.wordContent.join('\n') || 'Dokumen Word Kosong.';
   }
@@ -311,4 +359,368 @@ export class MockOfficeDriver implements IDocumentDriver {
       slides: slidesList,
     };
   }
+}
+
+export function colIndexToLetter(colIndex: number): string {
+  let temp = colIndex;
+  let letter = '';
+  while (temp >= 0) {
+    letter = String.fromCharCode((temp % 26) + 65) + letter;
+    temp = Math.floor(temp / 26) - 1;
+  }
+  return letter;
+}
+
+export function getCellAddress(colIndex: number, rowIndex: number): string {
+  return `${colIndexToLetter(colIndex)}${rowIndex + 1}`;
+}
+
+export const FORMULA_ERROR_REGEX = /^#(REF!|VALUE!|DIV\/0!|N\/A|NAME\?|NUM!|NULL!)/i;
+
+export function isFormulaError(val: any): boolean {
+  if (typeof val === 'string') {
+    return FORMULA_ERROR_REGEX.test(val.trim());
+  }
+  return false;
+}
+
+export function getFormulaErrorSuggestion(errorStr: string, address: string): string {
+  const upper = errorStr.toUpperCase();
+  if (upper.includes('#DIV/0!')) {
+    return `Sel ${address} menghasilkan error pembagian dengan nol (#DIV/0!). Gunakan IFERROR(...) atau pastikan sel pembagi tidak bernilai 0.`;
+  }
+  if (upper.includes('#REF!')) {
+    return `Sel ${address} mereferensikan sel yang tidak valid atau telah dihapus (#REF!). Periksa dan perbarui referensi sel.`;
+  }
+  if (upper.includes('#VALUE!')) {
+    return `Sel ${address} mengalami kesalahan tipe data (#VALUE!). Pastikan semua argumen bernilai sesuai (misal angka vs teks).`;
+  }
+  if (upper.includes('#N/A')) {
+    return `Sel ${address} tidak menemukan nilai yang dicari (#N/A). Pastikan nilai pencarian tersedia atau bungkus dengan IFNA/IFERROR.`;
+  }
+  if (upper.includes('#NAME?')) {
+    return `Sel ${address} memuat nama fungsi atau rentang yang salah ketik (#NAME?). Periksa kembali penulisan formula.`;
+  }
+  if (upper.includes('#NUM!')) {
+    return `Sel ${address} mengalami kalkulasi di luar batas valid numerik (#NUM!).`;
+  }
+  if (upper.includes('#NULL!')) {
+    return `Sel ${address} memiliki perpotongan rentang yang tidak valid (#NULL!).`;
+  }
+  return `Perbaiki formula pada sel ${address} untuk mengatasi error ${errorStr}.`;
+}
+
+export function performSheetAudit(
+  sheetName: string,
+  values: any[][],
+  formulas: string[][] = [],
+  startRow: number = 0,
+  startCol: number = 0,
+  valueTypes: any[][] = []
+): SheetAuditResult {
+  if (!values || values.length === 0 || values.every(row => !row || row.length === 0)) {
+    return {
+      sheetName,
+      totalCellsAudited: 0,
+      totalErrorsFound: 0,
+      criticalIssues: [],
+      warnings: [],
+      summary: `Sheet "${sheetName}" kosong. Tidak ada sel yang diaudit.`,
+    };
+  }
+
+  const rowCount = values.length;
+  const colCount = Math.max(...values.map(r => (Array.isArray(r) ? r.length : 0)));
+  const totalCellsAudited = rowCount * colCount;
+
+  const criticalIssues: FormulaIssue[] = [];
+  const warnings: FormulaIssue[] = [];
+
+  // 1. Scan for formula errors
+  for (let r = 0; r < rowCount; r++) {
+    for (let c = 0; c < colCount; c++) {
+      const val = values[r]?.[c];
+      const formula = formulas[r]?.[c] || '';
+      const vType = valueTypes[r]?.[c];
+      const cellAddress = getCellAddress(startCol + c, startRow + r);
+
+      const isErr = isFormulaError(val) || vType === 'Error' || (typeof val === 'string' && val.trim().startsWith('#'));
+      if (isErr) {
+        criticalIssues.push({
+          address: cellAddress,
+          type: 'formula_error',
+          severity: 'critical',
+          currentValue: val,
+          formula: formula || undefined,
+          suggestion: getFormulaErrorSuggestion(String(val), cellAddress),
+        });
+      }
+    }
+  }
+
+  // 2. Scan for hardcoded overrides in formula/numeric columns
+  if (rowCount >= 2) {
+    for (let c = 0; c < colCount; c++) {
+      const headerName = String(values[0]?.[c] ?? '').trim();
+      const colLetter = colIndexToLetter(startCol + c);
+
+      let formulaCount = 0;
+      let numericCount = 0;
+      let errorCount = 0;
+
+      for (let r = 1; r < rowCount; r++) {
+        const f = formulas[r]?.[c];
+        const v = values[r]?.[c];
+
+        if (typeof f === 'string' && f.trim().startsWith('=')) {
+          formulaCount++;
+        }
+        if (typeof v === 'number' && !isNaN(v)) {
+          numericCount++;
+        }
+        if (isFormulaError(v) || (typeof v === 'string' && v.trim().startsWith('#'))) {
+          errorCount++;
+        }
+      }
+
+      const dataRowCount = rowCount - 1;
+      const isPredominantlyFormula = dataRowCount > 1 && formulaCount / dataRowCount >= 0.5;
+      const isPredominantlyNumeric = dataRowCount > 1 && (numericCount + errorCount + formulaCount) / dataRowCount >= 0.5;
+
+      if (isPredominantlyFormula) {
+        for (let r = 1; r < rowCount; r++) {
+          const f = formulas[r]?.[c];
+          const v = values[r]?.[c];
+          const cellAddress = getCellAddress(startCol + c, startRow + r);
+          const isErr = isFormulaError(v) || (typeof v === 'string' && v.trim().startsWith('#'));
+
+          if (!isErr && (!f || !f.trim().startsWith('=')) && v !== '' && v !== null && v !== undefined) {
+            warnings.push({
+              address: cellAddress,
+              type: 'hardcoded_override',
+              severity: 'warning',
+              currentValue: v,
+              suggestion: `Kolom ${headerName || colLetter} mayoritas menggunakan formula, namun sel ${cellAddress} diisi secara manual (${v}). Pertimbangkan menyamakan rumus.`,
+            });
+          }
+        }
+      } else if (isPredominantlyNumeric) {
+        for (let r = 1; r < rowCount; r++) {
+          const v = values[r]?.[c];
+          const cellAddress = getCellAddress(startCol + c, startRow + r);
+          const isErr = isFormulaError(v) || (typeof v === 'string' && v.trim().startsWith('#'));
+
+          if (!isErr && typeof v === 'string' && v.trim() !== '' && isNaN(Number(v))) {
+            warnings.push({
+              address: cellAddress,
+              type: 'hardcoded_override',
+              severity: 'warning',
+              currentValue: v,
+              suggestion: `Kolom ${headerName || colLetter} mayoritas bernilai numerik, namun sel ${cellAddress} berisi teks manual ("${v}").`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const totalErrorsFound = criticalIssues.length + warnings.length;
+  let summary = '';
+  if (totalErrorsFound === 0) {
+    summary = `Audit selesai pada ${totalCellsAudited} sel di sheet "${sheetName}". Tidak ditemukan error formula ataupun inkonsistensi data.`;
+  } else {
+    summary = `Audit sheet "${sheetName}": Ditemukan ${criticalIssues.length} error formula kritis dan ${warnings.length} peringatan inkonsistensi dari total ${totalCellsAudited} sel yang diaudit.`;
+  }
+
+  return {
+    sheetName,
+    totalCellsAudited,
+    totalErrorsFound,
+    criticalIssues,
+    warnings,
+    summary,
+  };
+}
+
+export function buildDataStoryFromResult(values: any[][], options?: DataStoryOptions): DataStoryResult {
+  if (!values || values.length === 0 || values.every(row => !row || row.length === 0)) {
+    return {
+      headline: 'Data Tidak Tersedia untuk Analisis',
+      keyFindings: ['Rentang data kosong atau tidak memuat informasi yang dapat dianalisis.'],
+      metrics: [],
+      recommendations: options?.includeRecommendations !== false
+        ? ['Pastikan rentang yang dipilih memuat data numerik dan label kategori.']
+        : [],
+    };
+  }
+
+  const headers = (values[0] || []).map(h => String(h ?? '').trim());
+  const dataRows = values.slice(1).filter(r => Array.isArray(r) && r.some(c => c !== null && c !== ''));
+
+  if (dataRows.length === 0) {
+    return {
+      headline: 'Hanya Header Ditemukan',
+      keyFindings: ['Tabel hanya memiliki baris header tanpa baris data untuk dianalisis.'],
+      metrics: [],
+      recommendations: options?.includeRecommendations !== false
+        ? ['Tambahkan baris data transaksi atau metrik pada tabel.']
+        : [],
+    };
+  }
+
+  // Identify numeric columns
+  const numericColIndices: number[] = [];
+  for (let c = 0; c < headers.length; c++) {
+    let numCount = 0;
+    for (const row of dataRows) {
+      const v = row[c];
+      const parsed = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]+/g, ''));
+      if (!isNaN(parsed) && typeof v !== 'boolean') {
+        numCount++;
+      }
+    }
+    if (numCount >= Math.ceil(dataRows.length * 0.4) && numCount > 0) {
+      numericColIndices.push(c);
+    }
+  }
+
+  // Determine focus column
+  let focusColIdx = -1;
+  if (options?.focusMetric) {
+    const focusTarget = options.focusMetric.toLowerCase().trim();
+    focusColIdx = headers.findIndex(h => h.toLowerCase().includes(focusTarget));
+  }
+  if (focusColIdx === -1 && numericColIndices.length > 0) {
+    focusColIdx = numericColIndices[numericColIndices.length - 1];
+  }
+  if (focusColIdx === -1) {
+    focusColIdx = headers.length > 1 ? 1 : 0;
+  }
+
+  const focusHeader = headers[focusColIdx] || `Kolom ${focusColIdx + 1}`;
+
+  // Collect entries for focus column
+  const categoryColIdx = 0;
+  const entries: Array<{ label: string; value: number }> = dataRows.map((r, i) => {
+    const rawVal = r[focusColIdx];
+    const num = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal).replace(/[^0-9.-]+/g, '')) || 0;
+    const cat = categoryColIdx !== focusColIdx && r[categoryColIdx] !== undefined && r[categoryColIdx] !== ''
+      ? String(r[categoryColIdx])
+      : `Item ${i + 1}`;
+    return { label: cat, value: num };
+  });
+
+  const validValues = entries.map(e => e.value);
+  const sum = validValues.reduce((a, b) => a + b, 0);
+  const avg = validValues.length > 0 ? sum / validValues.length : 0;
+  const min = validValues.length > 0 ? Math.min(...validValues) : 0;
+  const max = validValues.length > 0 ? Math.max(...validValues) : 0;
+
+  const maxEntry = entries.find(e => e.value === max);
+  const minEntry = entries.find(e => e.value === min);
+
+  // Check for preceding comparison numeric column
+  const prevNumericColIdx = numericColIndices.filter(idx => idx < focusColIdx).pop();
+  let deltaPercent: number | undefined;
+  let trend: 'up' | 'down' | 'neutral' = 'neutral';
+
+  if (prevNumericColIdx !== undefined) {
+    const prevSum = dataRows.reduce((acc, r) => {
+      const v = r[prevNumericColIdx];
+      const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[^0-9.-]+/g, '')) || 0;
+      return acc + n;
+    }, 0);
+    if (prevSum !== 0) {
+      deltaPercent = Math.round(((sum - prevSum) / Math.abs(prevSum)) * 1000) / 10;
+      trend = deltaPercent > 0 ? 'up' : deltaPercent < 0 ? 'down' : 'neutral';
+    }
+  }
+
+  const formatNum = (n: number) => {
+    if (Number.isInteger(n)) return n.toLocaleString('id-ID');
+    return n.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  };
+
+  const metrics: DataStoryMetric[] = [
+    {
+      label: `Total ${focusHeader}`,
+      value: formatNum(sum),
+      changePercent: deltaPercent,
+      trend,
+    },
+    {
+      label: `Rata-rata ${focusHeader}`,
+      value: formatNum(avg),
+      trend: 'neutral',
+    },
+  ];
+
+  if (maxEntry) {
+    metrics.push({
+      label: `Tertinggi (${maxEntry.label})`,
+      value: formatNum(max),
+      trend: 'up',
+    });
+  }
+
+  if (minEntry && minEntry.label !== maxEntry?.label) {
+    metrics.push({
+      label: `Terendah (${minEntry.label})`,
+      value: formatNum(min),
+      trend: 'down',
+    });
+  }
+
+  let headline = '';
+  if (deltaPercent !== undefined && deltaPercent !== 0) {
+    const dir = deltaPercent > 0 ? `Pertumbuhan +${deltaPercent}%` : `Penurunan ${deltaPercent}%`;
+    headline = `${focusHeader} Mencapai ${formatNum(sum)} (${dir}) dengan Kontributor Utama ${maxEntry?.label || 'Teratas'}`;
+  } else {
+    headline = `Total ${focusHeader} Mencapai ${formatNum(sum)} Dipimpin oleh ${maxEntry?.label || 'Kontributor Utama'}`;
+  }
+
+  const keyFindings: string[] = [
+    `Total capaian ${focusHeader} adalah ${formatNum(sum)} dengan nilai rata-rata ${formatNum(avg)} per entitas.`,
+    `Kontributor terbesar diraih oleh ${maxEntry?.label || 'entitas utama'} sebesar ${formatNum(max)} (${Math.round((max / (sum || 1)) * 100)}% dari total).`,
+  ];
+
+  if (deltaPercent !== undefined && deltaPercent !== 0) {
+    const growthDesc = deltaPercent > 0 ? 'pertumbuhan positif' : 'kontraksi';
+    keyFindings.push(`Terjadi ${growthDesc} sebesar ${Math.abs(deltaPercent)}% dibandingkan kolom periode sebelumnya.`);
+  }
+
+  if (minEntry && minEntry.label !== maxEntry?.label) {
+    keyFindings.push(`Capaian terendah berada pada ${minEntry.label} sebesar ${formatNum(min)}.`);
+  }
+
+  const risksOrAnomalies: string[] = [];
+  if (minEntry && min < avg * 0.5 && entries.length > 2) {
+    risksOrAnomalies.push(`Capaian ${minEntry.label} (${formatNum(min)}) berada lebih dari 50% di bawah rata-rata grup.`);
+  }
+  if (deltaPercent !== undefined && deltaPercent < -10) {
+    risksOrAnomalies.push(`Penurunan tajam ${deltaPercent}% pada ${focusHeader} mengindikasikan deviasi target yang membutuhkan perhatian khusus.`);
+  }
+
+  const recommendations: string[] = [];
+  if (options?.includeRecommendations !== false) {
+    if (maxEntry) {
+      recommendations.push(`Pertahankan strategi dan alokasi sumber daya pada ${maxEntry.label} sebagai penopang utama portofolio.`);
+    }
+    if (minEntry && minEntry.label !== maxEntry?.label) {
+      recommendations.push(`Lakukan tinjauan operasional dan program akselerasi perbaikan untuk ${minEntry.label}.`);
+    }
+    if (deltaPercent !== undefined && deltaPercent > 0) {
+      recommendations.push(`Manfaatkan tren pertumbuhan positif ${focusHeader} untuk memperluas skala target periode mendatang.`);
+    } else {
+      recommendations.push(`Analisis hambatan utama penurunan performa ${focusHeader} dan siapkan rencana pemulihan terukur.`);
+    }
+  }
+
+  return {
+    headline,
+    keyFindings,
+    metrics,
+    risksOrAnomalies: risksOrAnomalies.length > 0 ? risksOrAnomalies : undefined,
+    recommendations,
+  };
 }

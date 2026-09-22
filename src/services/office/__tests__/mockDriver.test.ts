@@ -98,6 +98,41 @@ describe('MockOfficeDriver', () => {
     expect(context.title).toBe('Slide Utama');
     expect(context.textContent).toContain('Point 1');
   });
+
+  it('audits sheet data and detects formula errors and inconsistent overrides', async () => {
+    const driver = new MockOfficeDriver();
+    driver.mockData = [
+      ['Header1', 'Header2', 'Total'],
+      [10, 20, 200],
+      [15, 0, '#DIV/0!'],
+      [20, 5, 100],
+      [25, 4, 'manual_text_instead_of_number'],
+    ];
+
+    const audit = await driver.auditSheetData!();
+    expect(audit.totalCellsAudited).toBeGreaterThan(0);
+    expect(audit.totalErrorsFound).toBeGreaterThanOrEqual(1);
+    const divZero = audit.criticalIssues.find(i => i.currentValue === '#DIV/0!');
+    expect(divZero).toBeDefined();
+    expect(divZero?.address).toBe('C3');
+    expect(divZero?.suggestion).toBeDefined();
+  });
+
+  it('generates executive data story with metrics and recommendations', async () => {
+    const driver = new MockOfficeDriver();
+    driver.mockData = [
+      ['Wilayah', 'Penjualan Q1', 'Penjualan Q2'],
+      ['Barat', 1000, 1200],
+      ['Timur', 800, 1100],
+      ['Pusat', 1500, 1400],
+    ];
+
+    const story = await driver.generateDataStory!({ focusMetric: 'Penjualan Q2' });
+    expect(story.headline).toBeDefined();
+    expect(story.keyFindings.length).toBeGreaterThan(0);
+    expect(story.metrics.length).toBeGreaterThan(0);
+    expect(story.recommendations.length).toBeGreaterThan(0);
+  });
 });
 
 describe('getOfficeDriver', () => {

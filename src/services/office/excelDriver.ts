@@ -1,4 +1,13 @@
-import { CleanDataOptions, CleanDataResult, ConditionalFormattingOptions, IDocumentDriver } from './types';
+import {
+  CleanDataOptions,
+  CleanDataResult,
+  ConditionalFormattingOptions,
+  DataStoryOptions,
+  DataStoryResult,
+  IDocumentDriver,
+  SheetAuditResult,
+} from './types';
+import { buildDataStoryFromResult, performSheetAudit } from './mockDriver';
 
 declare const Excel: any;
 
@@ -278,6 +287,73 @@ export class ExcelDriver implements Partial<IDocumentDriver> {
         success: true,
         rule: `${options.type} on ${options.range}`,
       };
+    });
+  }
+
+  async auditSheetData(options?: { range?: string }): Promise<SheetAuditResult> {
+    return await Excel.run(async (context: any) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      sheet.load('name');
+
+      let range: any;
+      if (options?.range) {
+        range = sheet.getRange(options.range);
+      } else {
+        range = typeof sheet.getUsedRangeOrNullObject === 'function'
+          ? sheet.getUsedRangeOrNullObject(true)
+          : sheet.getUsedRange(true);
+      }
+      range.load(['address', 'values', 'formulas', 'valueTypes', 'rowIndex', 'columnIndex', 'rowCount', 'columnCount']);
+      await context.sync();
+
+      if (range.isNullObject || !range.values || range.values.length === 0) {
+        return {
+          sheetName: sheet.name || 'Sheet1',
+          totalCellsAudited: 0,
+          totalErrorsFound: 0,
+          criticalIssues: [],
+          warnings: [],
+          summary: `Lembar kerja "${sheet.name || 'Sheet1'}" kosong. Tidak ada data yang diaudit.`,
+        };
+      }
+
+      return performSheetAudit(
+        sheet.name || 'Sheet1',
+        range.values,
+        range.formulas || [],
+        range.rowIndex || 0,
+        range.columnIndex || 0,
+        range.valueTypes || []
+      );
+    });
+  }
+
+  async generateDataStory(options?: DataStoryOptions): Promise<DataStoryResult> {
+    return await Excel.run(async (context: any) => {
+      const sheet = context.workbook.worksheets.getActiveWorksheet();
+      let range: any;
+      if (options?.range) {
+        range = sheet.getRange(options.range);
+      } else {
+        range = typeof sheet.getUsedRangeOrNullObject === 'function'
+          ? sheet.getUsedRangeOrNullObject(true)
+          : sheet.getUsedRange(true);
+      }
+      range.load(['address', 'values', 'rowCount', 'columnCount']);
+      await context.sync();
+
+      if (range.isNullObject || !range.values || range.values.length === 0) {
+        return {
+          headline: 'Data Tidak Tersedia untuk Analisis',
+          keyFindings: ['Rentang lembar kerja aktif tidak memuat data yang dapat dianalisis.'],
+          metrics: [],
+          recommendations: options?.includeRecommendations !== false
+            ? ['Pastikan lembar kerja memiliki tabel data angka untuk analisis eksekutif.']
+            : [],
+        };
+      }
+
+      return buildDataStoryFromResult(range.values, options);
     });
   }
 }
