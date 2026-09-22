@@ -37,6 +37,8 @@ export interface IDocumentDriver {
   insertPictureBase64?(base64Image: string): Promise<void>;
   generateStructuredDoc?(options: StructuredDocOptions): Promise<{ success: boolean; message: string }>;
   polishDocumentText?(options: PolishTextOptions): Promise<{ success: boolean; polishedText: string }>;
+  reviewComplianceClauses?(options?: ComplianceReviewOptions): Promise<ComplianceReviewResult>;
+  applyCorporateStyle?(options?: CorporateStyleOptions): Promise<CorporateStyleResult>;
   // PowerPoint operations
   getSlideContext(): Promise<{
     slideNumber: number;
@@ -98,6 +100,45 @@ export interface PolishTextOptions {
   tone: 'formal_indonesia' | 'executive_english' | 'concise';
   instruction?: string;
   customText?: string;
+}
+
+export interface ComplianceClause {
+  category: 'payment_terms' | 'sla_performance' | 'liability_indemnity' | 'termination_cancellation' | 'confidentiality_nda' | 'dispute_resolution' | 'force_majeure' | 'general';
+  excerpt: string;
+  status: 'compliant' | 'warning' | 'high_risk' | 'missing';
+  analysis: string;
+  recommendation?: string;
+}
+
+export interface ComplianceReviewOptions {
+  scope?: 'selection' | 'document';
+  contractType?: 'vendor_service' | 'employment' | 'nda' | 'procurement' | 'general';
+  strictness?: 'standard' | 'strict';
+}
+
+export interface ComplianceReviewResult {
+  contractType: string;
+  overallRiskLevel: 'low' | 'medium' | 'high';
+  clausesReviewedCount: number;
+  identifiedClauses: ComplianceClause[];
+  missingCriticalClauses: string[];
+  executiveSummary: string;
+  actionableRecommendations: string[];
+}
+
+export interface CorporateStyleOptions {
+  theme?: 'corporate_navy' | 'executive_emerald' | 'modern_minimalist' | 'official_government';
+  scope?: 'selection' | 'document';
+  fontFamily?: string;
+  applyHeadingHierarchy?: boolean;
+}
+
+export interface CorporateStyleResult {
+  appliedTheme: string;
+  fontFamily: string;
+  styledParagraphsCount: number;
+  headingsCount: number;
+  message: string;
 }
 
 export interface ThemedDeckOptions {

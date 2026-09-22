@@ -18,6 +18,9 @@ import {
   DataStoryMetric,
   DataStoryResult,
   PendingActionProposal,
+  ComplianceClause,
+  ComplianceReviewResult,
+  CorporateStyleResult,
 } from '../src/services/office/types';
 
 describe('HostType & Guards', () => {
@@ -207,6 +210,41 @@ describe('Excel Deep Intelligence Types', () => {
     };
     expect(action.affectedCellsCount).toBe(20);
     expect(action.actionType).toBe('modify_cells');
+  });
+});
+
+describe('Word Compliance & Corporate Style Types', () => {
+  it('validates ComplianceClause and ComplianceReviewResult structure', () => {
+    const clause: ComplianceClause = {
+      category: 'liability_indemnity',
+      excerpt: 'Pihak kedua menanggung seluruh ganti rugi tanpa batas',
+      status: 'high_risk',
+      analysis: 'Klausul tanggung jawab tidak terbatas (unlimited liability)',
+      recommendation: 'Batasi maksimal nilai ganti rugi senilai nilai kontrak',
+    };
+    const review: ComplianceReviewResult = {
+      contractType: 'vendor_service',
+      overallRiskLevel: 'high',
+      clausesReviewedCount: 1,
+      identifiedClauses: [clause],
+      missingCriticalClauses: ['force_majeure'],
+      executiveSummary: 'Ditemukan klausul risiko tinggi ganti rugi tanpa batas.',
+      actionableRecommendations: ['Tambahkan pembatasan liability cap.'],
+    };
+    expect(review.overallRiskLevel).toBe('high');
+    expect(review.identifiedClauses[0].status).toBe('high_risk');
+  });
+
+  it('validates CorporateStyleResult structure', () => {
+    const res: CorporateStyleResult = {
+      appliedTheme: 'corporate_navy',
+      fontFamily: 'Calibri',
+      styledParagraphsCount: 15,
+      headingsCount: 3,
+      message: 'Berhasil menerapkan tema Corporate Navy ke 15 paragraf',
+    };
+    expect(res.appliedTheme).toBe('corporate_navy');
+    expect(res.headingsCount).toBe(3);
   });
 });
 
