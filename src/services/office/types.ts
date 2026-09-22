@@ -24,6 +24,8 @@ export interface IDocumentDriver {
   ): Promise<void>;
   cleanData?(options?: CleanDataOptions): Promise<CleanDataResult>;
   applyConditionalFormatting?(options: ConditionalFormattingOptions): Promise<{ success: boolean; rule: string }>;
+  auditSheetData?(options?: { range?: string }): Promise<SheetAuditResult>;
+  generateDataStory?(options?: DataStoryOptions): Promise<DataStoryResult>;
   // Word operations
   getWordOutline(): Promise<string>;
   getWordContext?(): Promise<{ bodyText: string; selectedText: string }>;
@@ -108,5 +110,56 @@ export interface ThemedDeckOptions {
     metrics?: Array<{ label: string; value: string }>;
     notes?: string;
   }>;
+}
+
+export type IOfficeDriver = IDocumentDriver;
+
+export interface FormulaIssue {
+  address: string;
+  type: 'formula_error' | 'inconsistent_formula' | 'hardcoded_override' | 'suspicious_blank' | 'statistical_outlier';
+  severity: 'critical' | 'warning' | 'info';
+  currentValue?: any;
+  formula?: string;
+  expectedPattern?: string;
+  suggestion: string;
+}
+
+export interface SheetAuditResult {
+  sheetName: string;
+  totalCellsAudited: number;
+  totalErrorsFound: number;
+  criticalIssues: FormulaIssue[];
+  warnings: FormulaIssue[];
+  summary: string;
+}
+
+export interface DataStoryOptions {
+  range?: string;
+  focusMetric?: string;
+  includeRecommendations?: boolean;
+}
+
+export interface DataStoryMetric {
+  label: string;
+  value: string | number;
+  changePercent?: number;
+  trend?: 'up' | 'down' | 'neutral';
+}
+
+export interface DataStoryResult {
+  headline: string;
+  keyFindings: string[];
+  metrics: DataStoryMetric[];
+  risksOrAnomalies?: string[];
+  recommendations: string[];
+}
+
+export interface PendingActionProposal {
+  id: string;
+  actionType: 'modify_cells' | 'clean_data' | 'format_cells';
+  description: string;
+  affectedCellsCount: number;
+  targetRange?: string;
+  payload: any;
 }
 

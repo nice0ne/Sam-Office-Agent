@@ -11,6 +11,14 @@ import {
   ExecutionMode,
 } from '../src/types';
 import { AgentContext, AgentResponse, IAgent, ExecutionContext } from '../src/agents/types';
+import {
+  FormulaIssue,
+  SheetAuditResult,
+  DataStoryOptions,
+  DataStoryMetric,
+  DataStoryResult,
+  PendingActionProposal,
+} from '../src/services/office/types';
 
 describe('HostType & Guards', () => {
   it('validates known Office hosts correctly', () => {
@@ -137,6 +145,68 @@ describe('Domain Models & Contracts', () => {
       toolCalls: [],
     };
     expect(resp.message).toBe('Done');
+  });
+});
+
+describe('Excel Deep Intelligence Types', () => {
+  it('validates FormulaIssue and SheetAuditResult structure', () => {
+    const issue: FormulaIssue = {
+      address: 'C5',
+      type: 'formula_error',
+      severity: 'critical',
+      formula: '=A5/B5',
+      currentValue: '#DIV/0!',
+      suggestion: 'B5 bernilai 0, gunakan IFERROR(A5/B5, 0)',
+    };
+    const audit: SheetAuditResult = {
+      sheetName: 'Sheet1',
+      totalCellsAudited: 50,
+      totalErrorsFound: 1,
+      criticalIssues: [issue],
+      warnings: [],
+      summary: 'Ditemukan 1 error kritis pada sheet Sheet1.',
+    };
+    expect(audit.totalErrorsFound).toBe(1);
+    expect(audit.criticalIssues[0].type).toBe('formula_error');
+    expect(audit.criticalIssues[0].address).toBe('C5');
+  });
+
+  it('validates DataStoryOptions, DataStoryMetric, and DataStoryResult structure', () => {
+    const options: DataStoryOptions = {
+      range: 'A1:C10',
+      focusMetric: 'Total Revenue',
+      includeRecommendations: true,
+    };
+    const metric: DataStoryMetric = {
+      label: 'Total Revenue',
+      value: 'Rp 1.250.000.000',
+      changePercent: 24,
+      trend: 'up',
+    };
+    const story: DataStoryResult = {
+      headline: 'Pendapatan Q3 Meningkat 24%',
+      keyFindings: ['Penjualan produk X naik tajam'],
+      metrics: [metric],
+      risksOrAnomalies: ['Keterlambatan pasokan di minggu 2'],
+      recommendations: ['Tingkatkan alokasi stok untuk produk X'],
+    };
+    expect(options.focusMetric).toBe('Total Revenue');
+    expect(metric.trend).toBe('up');
+    expect(story.headline).toContain('Pendapatan');
+    expect(story.metrics[0].value).toBe('Rp 1.250.000.000');
+  });
+
+  it('validates PendingActionProposal structure', () => {
+    const action: PendingActionProposal = {
+      id: 'act-1',
+      actionType: 'modify_cells',
+      description: 'Perbarui 20 formula di kolom Total',
+      affectedCellsCount: 20,
+      targetRange: 'D2:D21',
+      payload: { formula: '=B2*C2' },
+    };
+    expect(action.affectedCellsCount).toBe(20);
+    expect(action.actionType).toBe('modify_cells');
   });
 });
 
