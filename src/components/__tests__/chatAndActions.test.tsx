@@ -790,6 +790,37 @@ describe('ChatContainer Component', () => {
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
   });
+
+  it('propagates onConfirmAction and onCancelAction to MessageBubble', () => {
+    const onConfirmAction = vi.fn();
+    const onCancelAction = vi.fn();
+    const sampleMsgWithProp: ChatMessage = {
+      id: 'm-prop',
+      role: 'assistant',
+      content: 'Ada proposal',
+      timestamp: 1000,
+      pendingAction: {
+        id: 'p-1',
+        actionType: 'modify_cells',
+        description: 'Ubah formula',
+        affectedCellsCount: 12,
+        payload: {},
+      },
+    };
+
+    const harness = createHookHarness(ChatContainer, {
+      messages: [sampleMsgWithProp],
+      onApplyToolCall: () => {},
+      onConfirmAction,
+      onCancelAction,
+    });
+    const vdom = harness.render();
+
+    const bubble = findElement(vdom, el => el.type === MessageBubble);
+    expect(bubble).toBeDefined();
+    expect(bubble.props.onConfirmAction).toBe(onConfirmAction);
+    expect(bubble.props.onCancelAction).toBe(onCancelAction);
+  });
 });
 
 describe('QuickActionPresets Component', () => {
@@ -803,7 +834,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(5);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -817,6 +848,37 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Bersihkan Data');
     expect(html).toContain('Rekap &amp; Chart');
     expect(html).toContain('Format &amp; Color Scale');
+  });
+
+  it('renders new Excel presets for Audit Formula and Analisis Tren', () => {
+    const onSelect = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'Excel',
+      onSelectPreset: onSelect,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const auditBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Audit Formula & Error'));
+    const trendBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Analisis Tren'));
+
+    expect(auditBtn).toBeDefined();
+    expect(trendBtn).toBeDefined();
+
+    auditBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Audit seluruh formula pada sheet ini: cari error #REF!, #VALUE!, #DIV/0!, atau sel dengan rumus tidak konsisten dan berikan rekomendasinya.'
+    );
+
+    trendBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.'
+    );
+
+    const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelect} />);
+    expect(html).toContain('Audit Formula &amp; Error');
+    expect(html).toContain('Buat Analisis Tren');
   });
 
   it('renders QuickActionPresets for Word with correct labels and prompts', () => {

@@ -126,6 +126,81 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
     }
   };
 
+  const handleConfirmAction = async (proposalId: string) => {
+    const targetMsg = messages.find(m => m.pendingAction?.id === proposalId);
+    if (!targetMsg || !targetMsg.pendingAction) return;
+
+    const proposal = targetMsg.pendingAction;
+    setIsBusy(true);
+
+    try {
+      const driver = getOfficeDriver(host);
+      if (proposal.actionType === 'modify_cells' && proposal.payload) {
+        const range = proposal.targetRange || proposal.payload.range || 'A1';
+        const { values, formulas } = proposal.payload;
+        await driver.writeCells(range, values, formulas);
+      } else if (proposal.actionType === 'clean_data') {
+        if (driver.cleanData) {
+          await driver.cleanData(proposal.payload || {});
+        }
+      } else if (proposal.actionType === 'format_cells') {
+        if (driver.formatRange) {
+          const range = proposal.targetRange || proposal.payload?.range || 'A1';
+          const styles = proposal.payload?.styles || proposal.payload || {};
+          await driver.formatRange(range, styles);
+        }
+      }
+
+      documentContextCache.invalidate(host);
+
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.pendingAction?.id === proposalId) {
+            const confirmedNote = `\n\n✅ **Aksi Dikonfirmasi & Diterapkan:** ${proposal.description}`;
+            return {
+              ...m,
+              pendingAction: undefined,
+              content: m.content ? `${m.content}${confirmedNote}` : confirmedNote.trim(),
+            };
+          }
+          return m;
+        })
+      );
+    } catch (err: any) {
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.pendingAction?.id === proposalId) {
+            return {
+              ...m,
+              pendingAction: undefined,
+              error: `Gagal menerapkan aksi: ${err.message || String(err)}`,
+            };
+          }
+          return m;
+        })
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleCancelAction = (proposalId: string) => {
+    setMessages(prev =>
+      prev.map(m => {
+        if (m.pendingAction?.id === proposalId) {
+          const desc = m.pendingAction.description;
+          const cancelNote = `\n\n❌ **Aksi Dibatalkan:** ${desc}`;
+          return {
+            ...m,
+            pendingAction: undefined,
+            content: m.content ? `${m.content}${cancelNote}` : cancelNote.trim(),
+          };
+        }
+        return m;
+      })
+    );
+  };
+
   const handleSendMessage = async (
     text: string,
     options?: { displayText?: string; isContinuation?: boolean }
@@ -326,6 +401,8 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         messages={messages}
         onApplyToolCall={handleApplyToolCall}
         isExecuting={isBusy}
+        onConfirmAction={handleConfirmAction}
+        onCancelAction={handleCancelAction}
       />
 
       <InputBar onSendMessage={handleSendMessage} disabled={isBusy} host={host} />

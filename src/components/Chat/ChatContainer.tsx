@@ -6,12 +6,16 @@ export interface ChatContainerProps {
   messages: ChatMessage[];
   onApplyToolCall: (toolCall: ToolCall) => void;
   isExecuting?: boolean;
+  onConfirmAction?: (proposalId: string) => void;
+  onCancelAction?: (proposalId: string) => void;
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({
   messages,
   onApplyToolCall,
   isExecuting,
+  onConfirmAction,
+  onCancelAction,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +31,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           message={m}
           onApplyToolCall={onApplyToolCall}
           isExecuting={isExecuting}
+          onConfirmAction={onConfirmAction}
+          onCancelAction={onCancelAction}
         />
       ))}
       <div ref={bottomRef} />

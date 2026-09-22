@@ -30,6 +30,16 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🎨 Format & Color Scale',
       prompt: 'Terapkan format tebal pada baris header dan terapkan conditional formatting color scale pada kolom angka.',
     },
+    {
+      id: 'excel_audit_formula',
+      label: '🔍 Audit Formula & Error',
+      prompt: 'Audit seluruh formula pada sheet ini: cari error #REF!, #VALUE!, #DIV/0!, atau sel dengan rumus tidak konsisten dan berikan rekomendasinya.',
+    },
+    {
+      id: 'excel_data_story',
+      label: '📈 Buat Analisis Tren',
+      prompt: 'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.',
+    },
   ],
   Word: [
     {
@@ -80,6 +90,16 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'dev_format_color',
       label: '🎨 Format & Color Scale',
       prompt: 'Terapkan format tebal pada baris header dan terapkan conditional formatting color scale pada kolom angka.',
+    },
+    {
+      id: 'excel_audit_formula',
+      label: '🔍 Audit Formula & Error',
+      prompt: 'Audit seluruh formula pada sheet ini: cari error #REF!, #VALUE!, #DIV/0!, atau sel dengan rumus tidak konsisten dan berikan rekomendasinya.',
+    },
+    {
+      id: 'excel_data_story',
+      label: '📈 Buat Analisis Tren',
+      prompt: 'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.',
     },
   ],
 };

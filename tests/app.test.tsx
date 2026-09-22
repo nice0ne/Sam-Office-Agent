@@ -718,6 +718,97 @@ describe('ReAct Execution Engine & Document Cache Integration in App', () => {
     expect(html).toContain('Bersihkan Data');
     expect(html).toContain('Rekap &amp; Chart');
     expect(html).toContain('Format &amp; Color Scale');
+    expect(html).toContain('Audit Formula &amp; Error');
+    expect(html).toContain('Buat Analisis Tren');
+  });
+});
+
+describe('Safe Dry-Run Action Confirmation in App', () => {
+  it('confirms and applies pending action proposal through handleConfirmAction', async () => {
+    const mockDriver = new officeModule.MockOfficeDriver();
+    const writeCellsSpy = vi.spyOn(mockDriver, 'writeCells');
+    officeModule.setOfficeDriver(mockDriver);
+
+    const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+    let vdom = harness.render();
+
+    let chatContainer = vdom.props.children[1];
+    expect(chatContainer.props.onConfirmAction).toBeDefined();
+
+    const states = harness.getStates();
+    const proposal = {
+      id: 'prop-app-1',
+      actionType: 'modify_cells' as const,
+      description: 'Menulis formula ke D2:D20',
+      affectedCellsCount: 19,
+      targetRange: 'D2:D20',
+      payload: { range: 'D2:D20', formulas: [['=B2*C2']] },
+    };
+
+    states[1] = [
+      ...states[1],
+      {
+        id: 'msg-with-prop',
+        role: 'assistant',
+        content: 'Ada perubahan massal.',
+        timestamp: Date.now(),
+        pendingAction: proposal,
+      },
+    ];
+
+    vdom = harness.render();
+    chatContainer = vdom.props.children[1];
+
+    await chatContainer.props.onConfirmAction('prop-app-1');
+
+    vdom = harness.render();
+    chatContainer = vdom.props.children[1];
+    const updatedMsg = chatContainer.props.messages.find((m: any) => m.id === 'msg-with-prop');
+
+    expect(updatedMsg.pendingAction).toBeUndefined();
+    expect(updatedMsg.content).toContain('Aksi Dikonfirmasi & Diterapkan');
+    expect(writeCellsSpy).toHaveBeenCalledWith('D2:D20', undefined, [['=B2*C2']]);
+  });
+
+  it('cancels pending action proposal through handleCancelAction', () => {
+    const harness = createHookHarness(App, { initialHost: 'Excel' as HostType });
+    let vdom = harness.render();
+
+    let chatContainer = vdom.props.children[1];
+    expect(chatContainer.props.onCancelAction).toBeDefined();
+
+    const states = harness.getStates();
+    const proposal = {
+      id: 'prop-app-cancel',
+      actionType: 'modify_cells' as const,
+      description: 'Menulis formula ke E2:E20',
+      affectedCellsCount: 19,
+      targetRange: 'E2:E20',
+      payload: {},
+    };
+
+    states[1] = [
+      ...states[1],
+      {
+        id: 'msg-cancel',
+        role: 'assistant',
+        content: 'Konfirmasi dibutuhkan.',
+        timestamp: Date.now(),
+        pendingAction: proposal,
+      },
+    ];
+
+    vdom = harness.render();
+    chatContainer = vdom.props.children[1];
+
+    chatContainer.props.onCancelAction('prop-app-cancel');
+
+    vdom = harness.render();
+    chatContainer = vdom.props.children[1];
+    const updatedMsg = chatContainer.props.messages.find((m: any) => m.id === 'msg-cancel');
+
+    expect(updatedMsg.pendingAction).toBeUndefined();
+    expect(updatedMsg.content).toContain('Aksi Dibatalkan');
   });
 });
 
