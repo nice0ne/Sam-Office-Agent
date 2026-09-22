@@ -272,7 +272,7 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(tools.some(t => t.name === 'audit_sheet_data')).toBe(true);
 
       const res = await testAgent.executeTool(
-        { id: 'c1', name: 'audit_sheet_data', arguments: {} },
+        { id: 'c1', name: 'audit_sheet_data', arguments: {}, status: 'pending' },
         context
       );
       expect(res.success).toBe(true);
@@ -293,7 +293,7 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(tools.some(t => t.name === 'generate_data_story')).toBe(true);
 
       const res = await testAgent.executeTool(
-        { id: 'c2', name: 'generate_data_story', arguments: { focusMetric: 'Revenue' } },
+        { id: 'c2', name: 'generate_data_story', arguments: { focusMetric: 'Revenue' }, status: 'pending' },
         context
       );
       expect(res.success).toBe(true);
