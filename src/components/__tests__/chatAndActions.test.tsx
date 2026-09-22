@@ -6,7 +6,8 @@ import { MessageBubble } from '../Chat/MessageBubble';
 import { InputBar } from '../Chat/InputBar';
 import { ChatContainer } from '../Chat/ChatContainer';
 import { QuickActionPresets } from '../Chat/QuickActionPresets';
-import { ToolCall, ChatMessage } from '../../types';
+import { ActionConfirmationCard } from '../Chat/ActionConfirmationCard';
+import { ToolCall, ChatMessage, PendingActionProposal } from '../../types';
 
 // Helper to strip React SSR comments from html output
 function stripComments(html: string): string {
@@ -957,3 +958,149 @@ describe('MessageBubble ReAct Step and Tool Badges', () => {
     expect(html).toContain('Error: Range tidak valid');
   });
 });
+
+describe('ActionConfirmationCard Component', () => {
+  const mockProposal: PendingActionProposal = {
+    id: 'prop-123',
+    actionType: 'modify_cells',
+    description: 'Menulis formula total penjualan dan diskon ke kolom E dan F',
+    affectedCellsCount: 42,
+    targetRange: 'E2:F22',
+    payload: { range: 'E2:F22' },
+  };
+
+  it('renders proposal description, affected cells count badge, and target range', () => {
+    const html = stripComments(
+      renderToString(
+        <ActionConfirmationCard
+          proposal={mockProposal}
+          onConfirm={() => {}}
+          onCancel={() => {}}
+        />
+      )
+    );
+    expect(html).toContain('Menulis formula total penjualan dan diskon ke kolom E dan F');
+    expect(html).toContain('42 sel');
+    expect(html).toContain('E2:F22');
+    expect(html).toContain('Terapkan Perubahan');
+    expect(html).toContain('Batalkan');
+  });
+
+  it('triggers onConfirm when apply button is clicked', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const vdom = ActionConfirmationCard({
+      proposal: mockProposal,
+      onConfirm,
+      onCancel,
+    }) as React.ReactElement;
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const confirmBtn = buttons.find(b => {
+      const text = JSON.stringify(b.props.children);
+      return text.includes('Terapkan') || text.includes('Terapkan Perubahan');
+    });
+    expect(confirmBtn).toBeDefined();
+    confirmBtn.props.onClick();
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith('prop-123');
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('triggers onCancel when cancel button is clicked', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const vdom = ActionConfirmationCard({
+      proposal: mockProposal,
+      onConfirm,
+      onCancel,
+    }) as React.ReactElement;
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const cancelBtn = buttons.find(b => {
+      const text = JSON.stringify(b.props.children);
+      return text.includes('Batalkan');
+    });
+    expect(cancelBtn).toBeDefined();
+    cancelBtn.props.onClick();
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledWith('prop-123');
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('disables buttons when disabled prop is true', () => {
+    const html = renderToString(
+      <ActionConfirmationCard
+        proposal={mockProposal}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+        disabled={true}
+      />
+    );
+    expect(html).toContain('disabled');
+  });
+});
+
+describe('MessageBubble with pendingAction proposal', () => {
+  const proposal: PendingActionProposal = {
+    id: 'prop-abc',
+    actionType: 'clean_data',
+    description: 'Membersihkan spasi ganda dan baris duplikat',
+    affectedCellsCount: 15,
+    payload: {},
+  };
+
+  const messageWithProposal: ChatMessage = {
+    id: 'msg-prop-1',
+    role: 'assistant',
+    content: 'Saya telah menyiapkan aksi pembersihan data. Silakan konfirmasi untuk menerapkan.',
+    timestamp: 1000,
+    pendingAction: proposal,
+  };
+
+  it('renders ActionConfirmationCard when message has pendingAction', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const html = stripComments(
+      renderToString(
+        <MessageBubble
+          message={messageWithProposal}
+          onApplyToolCall={() => {}}
+          onConfirmAction={onConfirm}
+          onCancelAction={onCancel}
+        />
+      )
+    );
+    expect(html).toContain('Membersihkan spasi ganda dan baris duplikat');
+    expect(html).toContain('15 sel');
+    expect(html).toContain('Terapkan Perubahan');
+    expect(html).toContain('Batalkan');
+  });
+
+  it('passes onConfirm and onCancel callbacks through MessageBubble', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    const harness = createHookHarness(MessageBubble, {
+      message: messageWithProposal,
+      onApplyToolCall: () => {},
+      onConfirmAction: onConfirm,
+      onCancelAction: onCancel,
+    });
+    const vdom = harness.render();
+
+    const actionCard = findElement(vdom, el => el.type === ActionConfirmationCard);
+    expect(actionCard).toBeDefined();
+    expect(actionCard.props.proposal).toBe(proposal);
+    expect(actionCard.props.onConfirm).toBe(onConfirm);
+    expect(actionCard.props.onCancel).toBe(onCancel);
+
+    actionCard.props.onConfirm('prop-abc');
+    expect(onConfirm).toHaveBeenCalledWith('prop-abc');
+
+    actionCard.props.onCancel('prop-abc');
+    expect(onCancel).toHaveBeenCalledWith('prop-abc');
+  });
+});
+

@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { ChatMessage, ToolCall } from '../../types';
 import { ActionCard } from '../Actions/ActionCard';
+import { ActionConfirmationCard } from './ActionConfirmationCard';
 import { Bot, User, Copy, Check, Download, Wrench } from 'lucide-react';
 
 export interface MessageBubbleProps {
   message: ChatMessage;
   onApplyToolCall: (toolCall: ToolCall) => void;
   isExecuting?: boolean;
+  onConfirmAction?: (proposalId: string) => void;
+  onCancelAction?: (proposalId: string) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   onApplyToolCall,
   isExecuting,
+  onConfirmAction,
+  onCancelAction,
 }) => {
   const isUser = message.role === 'user';
   const isTool = message.role === 'tool';
@@ -181,6 +186,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {message.error && (
           <div className="mt-1 text-red-500 font-medium text-[11px] select-text">{message.error}</div>
+        )}
+
+        {message.pendingAction && (
+          <ActionConfirmationCard
+            proposal={message.pendingAction}
+            onConfirm={onConfirmAction || (() => {})}
+            onCancel={onCancelAction || (() => {})}
+            disabled={isExecuting}
+          />
         )}
 
         {message.toolCalls && message.toolCalls.map(tc => (

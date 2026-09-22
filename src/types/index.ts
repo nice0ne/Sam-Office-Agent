@@ -15,6 +15,8 @@ export interface ProviderConfig {
   enabled: boolean;
 }
 
+import type { PendingActionProposal } from '../services/office/types';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -32,6 +34,7 @@ export interface ChatMessage {
     maxSteps: number;
     description?: string;
   };
+  pendingAction?: PendingActionProposal;
 }
 
 export interface ToolProperty {
@@ -73,3 +76,5 @@ export interface ActionQueueItem {
 export type AgentAction = ActionQueueItem;
 
 export type ExecutionMode = 'copilot' | 'autopilot';
+
+export type { PendingActionProposal };
