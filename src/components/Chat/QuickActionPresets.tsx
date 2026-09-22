@@ -57,6 +57,16 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '✍️ Poles Bahasa & EYD',
       prompt: 'Poles dan perbaiki tata bahasa dokumen/seleksi aktif agar sesuai dengan standar EYD formal bisnis profesional.',
     },
+    {
+      id: 'word_review_contract',
+      label: '⚖️ Review Kontrak & Risiko',
+      prompt: 'Audit dan review kepatuhan klausul pada dokumen/kontrak ini: periksa SLA, denda, termin pembayaran, klausul risiko tinggi, dan berikan rekomendasi perbaikan.',
+    },
+    {
+      id: 'word_corporate_style',
+      label: '🎨 Format Brand Korporat',
+      prompt: 'Terapkan standarisasi gaya dan format korporat profesional (Corporate Navy) pada seluruh dokumen ini: tata hierarki heading, font, dan spasi yang rapi.',
+    },
   ],
   PowerPoint: [
     {

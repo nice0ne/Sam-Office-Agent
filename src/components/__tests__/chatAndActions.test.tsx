@@ -891,7 +891,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(5);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -904,6 +904,37 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Notulen Rapat (MoM)');
     expect(html).toContain('Buat SOP');
     expect(html).toContain('Poles Bahasa &amp; EYD');
+  });
+
+  it('renders new Word presets for Review Kontrak and Format Brand Korporat', () => {
+    const onSelect = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'Word',
+      onSelectPreset: onSelect,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const contractBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Review Kontrak & Risiko'));
+    const corporateBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Format Brand Korporat'));
+
+    expect(contractBtn).toBeDefined();
+    expect(corporateBtn).toBeDefined();
+
+    contractBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Audit dan review kepatuhan klausul pada dokumen/kontrak ini: periksa SLA, denda, termin pembayaran, klausul risiko tinggi, dan berikan rekomendasi perbaikan.'
+    );
+
+    corporateBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Terapkan standarisasi gaya dan format korporat profesional (Corporate Navy) pada seluruh dokumen ini: tata hierarki heading, font, dan spasi yang rapi.'
+    );
+
+    const html = renderToString(<QuickActionPresets host="Word" onSelectPreset={onSelect} />);
+    expect(html).toContain('Review Kontrak &amp; Risiko');
+    expect(html).toContain('Format Brand Korporat');
   });
 
   it('renders QuickActionPresets for PowerPoint with correct labels and prompts', () => {
