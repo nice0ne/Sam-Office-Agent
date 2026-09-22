@@ -9,6 +9,8 @@ export class ExcelAgent implements IAgent {
   name = 'Excel Specialist';
   hostType = 'Excel' as const;
 
+  constructor(private driverOverride?: any) {}
+
   getSystemPrompt(context: AgentContext): string {
     return `Anda adalah Sam Office Agent spesialis Microsoft Excel.
 Anda ahli dalam analisis data, formula spreadsheet kompleks (SUM, AVERAGE, XLOOKUP, INDEX, MATCH), pemformatan sel, dan pembuatan grafik.
@@ -153,6 +155,28 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
           required: ['range', 'type'],
         },
       },
+      {
+        name: 'audit_sheet_data',
+        description: 'Mengaudit data lembar kerja secara mendalam untuk mendeteksi error formula (#REF!, #DIV/0!, dsb), rumus tidak konsisten, sel manual yang menimpa rumus, atau nilai anomali.',
+        parameters: {
+          type: 'object',
+          properties: {
+            range: { type: 'string', description: 'Range sel opsional, misal "A1:E50". Jika kosong, mengaudit seluruh usedRange lembar kerja aktif.' },
+          },
+        },
+      },
+      {
+        name: 'generate_data_story',
+        description: 'Menghasilkan ringkasan naratif eksekutif bisnis komprehensif, metrik kunci, tren pertumbuhan, dan rekomendasi berbasis data spreadsheet.',
+        parameters: {
+          type: 'object',
+          properties: {
+            range: { type: 'string', description: 'Range sel opsional, misal "A1:D20". Jika kosong, menganalisis seluruh data tabel pada worksheet aktif.' },
+            focusMetric: { type: 'string', description: 'Nama kolom metrik atau angka yang ingin menjadi fokus utama analisis naratif (misal: "Revenue", "Laba Bersih", "Penjualan").' },
+            includeRecommendations: { type: 'boolean', description: 'Apakah menyertakan poin rekomendasi bisnis strategis (default: true).' },
+          },
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -163,7 +187,7 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
       return metaCheck.result!;
     }
 
-    const driver = getOfficeDriver('Excel');
+    const driver = this.driverOverride || getOfficeDriver('Excel');
     try {
       if (toolCall.name === 'read_sheet') {
         const { range } = toolCall.arguments || {};
@@ -269,6 +293,94 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
           };
         }
         return { success: false, error: 'Driver Excel tidak mendukung applyConditionalFormatting.' };
+      }
+
+      if (toolCall.name === 'audit_sheet_data') {
+        const { range } = toolCall.arguments || {};
+        if (driver.auditSheetData) {
+          const audit = await driver.auditSheetData({ range });
+          let report = `### 🔍 Laporan Audit Lembar Kerja: ${audit.sheetName}\n\n`;
+          report += `**Ringkasan:** ${audit.summary}\n`;
+          report += `- **Total Sel Diaudit:** ${audit.totalCellsAudited}\n`;
+          report += `- **Total Error Formula:** ${audit.criticalIssues.length}\n`;
+          report += `- **Total Peringatan/Inkonsistensi:** ${audit.warnings.length}\n\n`;
+
+          if (audit.criticalIssues.length > 0) {
+            report += `#### 🚨 Error Kritis Formula (${audit.criticalIssues.length})\n`;
+            for (const issue of audit.criticalIssues) {
+              const formulaInfo = issue.formula ? ` | Formula: \`${issue.formula}\`` : '';
+              report += `- **Sel ${issue.address}**: Nilai \`${issue.currentValue}\`${formulaInfo}\n  - *Saran:* ${issue.suggestion}\n`;
+            }
+            report += '\n';
+          }
+
+          if (audit.warnings.length > 0) {
+            report += `#### ⚠️ Peringatan & Anomali (${audit.warnings.length})\n`;
+            for (const warn of audit.warnings) {
+              const valInfo = warn.currentValue !== undefined ? ` (Nilai: \`${warn.currentValue}\`)` : '';
+              report += `- **Sel ${warn.address}**${valInfo}: ${warn.suggestion}\n`;
+            }
+            report += '\n';
+          }
+
+          if (audit.totalErrorsFound === 0) {
+            report += `✅ Lembar kerja berada dalam kondisi bersih tanpa error formula atau inkonsistensi yang terdeteksi.`;
+          }
+
+          return {
+            success: true,
+            result: report.trim(),
+          };
+        }
+        return { success: false, error: 'Driver Excel tidak mendukung auditSheetData.' };
+      }
+
+      if (toolCall.name === 'generate_data_story') {
+        const { range, focusMetric, includeRecommendations } = toolCall.arguments || {};
+        if (driver.generateDataStory) {
+          const story = await driver.generateDataStory({ range, focusMetric, includeRecommendations });
+          let report = `### 📊 Narasi Eksekutif Data\n\n`;
+          report += `**Headline:** ${story.headline}\n\n`;
+
+          if (story.metrics && story.metrics.length > 0) {
+            report += `#### 📈 Metrik Utama\n`;
+            for (const m of story.metrics) {
+              const trendIcon = m.trend === 'up' ? '▲' : m.trend === 'down' ? '▼' : '●';
+              const change = m.changePercent !== undefined ? ` (${m.changePercent > 0 ? '+' : ''}${m.changePercent}%)` : '';
+              report += `- **${m.label}**: ${m.value}${change} ${trendIcon}\n`;
+            }
+            report += '\n';
+          }
+
+          if (story.keyFindings && story.keyFindings.length > 0) {
+            report += `#### 💡 Temuan Kunci\n`;
+            for (const finding of story.keyFindings) {
+              report += `- ${finding}\n`;
+            }
+            report += '\n';
+          }
+
+          if (story.risksOrAnomalies && story.risksOrAnomalies.length > 0) {
+            report += `#### ⚠️ Risiko & Anomali Data\n`;
+            for (const risk of story.risksOrAnomalies) {
+              report += `- ${risk}\n`;
+            }
+            report += '\n';
+          }
+
+          if (story.recommendations && story.recommendations.length > 0) {
+            report += `#### 🎯 Rekomendasi Strategis\n`;
+            for (const rec of story.recommendations) {
+              report += `- ${rec}\n`;
+            }
+          }
+
+          return {
+            success: true,
+            result: report.trim(),
+          };
+        }
+        return { success: false, error: 'Driver Excel tidak mendukung generateDataStory.' };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };

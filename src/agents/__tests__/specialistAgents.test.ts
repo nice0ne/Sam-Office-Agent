@@ -19,6 +19,8 @@ describe('Specialist Agents Tools & Prompts', () => {
     expect(toolNames).toContain('create_chart');
     expect(toolNames).toContain('clean_data');
     expect(toolNames).toContain('apply_conditional_formatting');
+    expect(toolNames).toContain('audit_sheet_data');
+    expect(toolNames).toContain('generate_data_story');
     expect(agent.id).toBe('excel-specialist');
     expect(agent.hostType).toBe('Excel');
   });
@@ -256,6 +258,48 @@ describe('Specialist Agents Tools & Prompts', () => {
 
       expect(res.success).toBe(false);
       expect(res.error).toContain('wajib diisi');
+    });
+
+    it('executes audit_sheet_data tool and returns markdown audit report', async () => {
+      const mockDriver = new MockOfficeDriver();
+      mockDriver.mockData = [
+        ['Product', 'Qty', 'Price', 'Total'],
+        ['A', 10, 5, 50],
+        ['B', 2, 0, '#DIV/0!'],
+      ];
+      const testAgent = new ExcelAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'audit_sheet_data')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        { id: 'c1', name: 'audit_sheet_data', arguments: {} },
+        context
+      );
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Total Error Formula');
+      expect(res.result).toContain('#DIV/0!');
+      expect(res.result).toContain('D3');
+    });
+
+    it('executes generate_data_story tool and returns executive data narrative', async () => {
+      const mockDriver = new MockOfficeDriver();
+      mockDriver.mockData = [
+        ['Category', 'Revenue'],
+        ['Laptops', 50000000],
+        ['Phones', 75000000],
+      ];
+      const testAgent = new ExcelAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'generate_data_story')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        { id: 'c2', name: 'generate_data_story', arguments: { focusMetric: 'Revenue' } },
+        context
+      );
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Headline');
+      expect(res.result).toContain('Metrik Utama');
+      expect(res.result).toContain('Laptops');
     });
 
     it('returns error for unknown tool', async () => {
