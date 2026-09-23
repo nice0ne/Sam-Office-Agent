@@ -87,6 +87,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🌐 Riset Web & Tulis Laporan',
       prompt: 'Cari tren dan perkembangan industri terkini di internet, lalu buatkan naskah laporan eksekutif lengkap dengan tabel dan kesimpulannya.',
     },
+    {
+      id: 'word_insert_flowchart',
+      label: '📐 Buat Diagram Alur (Flowchart)',
+      prompt: 'Buat diagram alur proses visual (flowchart) profesional berdasarkan SOP atau proses kerja dalam dokumen ini, lalu sisipkan langsung ke naskah.',
+    },
   ],
   PowerPoint: [
     {
@@ -118,6 +123,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'ppt_web_search',
       label: '🌐 Riset Data & Buat Slide',
       prompt: 'Cari data statistik dan fakta terkini di internet, lalu ubah menjadi 5 slide presentasi eksekutif lengkap dengan naskah pembicara.',
+    },
+    {
+      id: 'ppt_insert_flowchart',
+      label: '📐 Sisipkan Slide Flowchart Alur',
+      prompt: 'Buatkan 1 slide visual khusus diagram alur proses (flowchart) bisnis dengan tema profesional dan naskah penjelasan pemateri.',
     },
   ],
   BrowserDev: [
