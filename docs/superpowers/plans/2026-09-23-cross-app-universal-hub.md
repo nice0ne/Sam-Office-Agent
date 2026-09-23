@@ -124,7 +124,7 @@ git commit -m "feat(storage): implement CrossAppBridge engine and contracts"
 - Consumes: `saveCrossAppSnapshot` from `crossAppBridge.ts`.
 - Produces: Tool `share_to_cross_app_hub` in `ExcelAgent.getTools()` and handler in `executeTool()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/agents/__tests__/specialistAgents.test.ts`:
 ```typescript
@@ -155,21 +155,21 @@ it('provides share_to_cross_app_hub tool in ExcelAgent and saves table snapshot'
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: FAIL with tool not found.
 
-- [ ] **Step 3: Implement `share_to_cross_app_hub` in `src/agents/excel/excelAgent.ts`**
+- [x] **Step 3: Implement `share_to_cross_app_hub` in `src/agents/excel/excelAgent.ts`**
 
 Register the tool and implement execution: read sheet data, format table payload, call `saveCrossAppSnapshot`, and return confirmation.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/agents/excel/excelAgent.ts src/agents/__tests__/specialistAgents.test.ts
@@ -188,7 +188,7 @@ git commit -m "feat(agent): implement share_to_cross_app_hub in ExcelAgent"
 - Consumes: `getLatestCrossAppSnapshot`, `saveCrossAppSnapshot`.
 - Produces: Tools `import_from_cross_app_hub` and `share_to_cross_app_hub` in `WordAgent`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/agents/__tests__/specialistAgents.test.ts`:
 ```typescript
@@ -226,21 +226,21 @@ it('provides import_from_cross_app_hub in WordAgent and inserts table and narrat
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `import_from_cross_app_hub` and `share_to_cross_app_hub` in `src/agents/word/wordAgent.ts`**
+- [x] **Step 3: Implement `import_from_cross_app_hub` and `share_to_cross_app_hub` in `src/agents/word/wordAgent.ts`**
 
 Register tools and implement execution calling `driver.insertTable` and `driver.insertContent`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/agents/word/wordAgent.ts src/agents/__tests__/specialistAgents.test.ts
@@ -259,7 +259,7 @@ git commit -m "feat(agent): implement cross-app hub import and share in WordAgen
 - Consumes: `getLatestCrossAppSnapshot`, `driver.transformDocToDeck`.
 - Produces: Tool `import_from_cross_app_hub` in `PPTAgent`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/agents/__tests__/specialistAgents.test.ts`:
 ```typescript
@@ -297,21 +297,21 @@ it('provides import_from_cross_app_hub in PPTAgent and transforms snapshot into 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `import_from_cross_app_hub` in `src/agents/powerpoint/pptAgent.ts`**
+- [x] **Step 3: Implement `import_from_cross_app_hub` in `src/agents/powerpoint/pptAgent.ts`**
 
 Register the tool and implement execution by pulling the latest snapshot, assembling formatted narrative, and executing `driver.transformDocToDeck`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/agents/__tests__/specialistAgents.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/agents/powerpoint/pptAgent.ts src/agents/__tests__/specialistAgents.test.ts
