@@ -108,3 +108,26 @@ export interface CrossAppSnapshot {
   timestamp: number;
   metadata?: Record<string, any>;
 }
+
+export type DirectiveCategory = 'tone' | 'terminology' | 'formatting' | 'constraint' | 'general';
+
+export interface LearnedDirective {
+  id: string;
+  category: DirectiveCategory;
+  rule: string;
+  learnedAt: number;
+  source?: string;
+  explanation?: string;
+}
+
+export type BrandVoicePreset = 'formal_executive' | 'modern_professional' | 'financial_compliance' | 'custom';
+
+export interface SoulConfig {
+  enabled: boolean;
+  corporateName: string;
+  brandVoicePreset: BrandVoicePreset;
+  rawSoulMarkdown: string;
+  learnedDirectives: LearnedDirective[];
+  lastUpdated: number;
+}
+
