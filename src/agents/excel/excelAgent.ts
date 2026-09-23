@@ -5,6 +5,7 @@ import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
 import { saveCrossAppSnapshot } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
+import { addLearnedDirective } from '../../services/storage/soulStorage';
 
 export class ExcelAgent implements IAgent {
   id = 'excel-specialist';
@@ -35,7 +36,8 @@ Ketika pengguna meminta membuat ringkasan/summary dan membuat chart (misal: "sum
 5. JANGAN PERNAH berhenti di \`read_sheet\` ketika pengguna meminta membuat grafik/chart!
 
 PENTING:
-Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.`;
+Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.
+PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -203,6 +205,23 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
           required: ['query'],
         },
       },
+      {
+        name: 'learn_corporate_directive',
+        description: 'Mencatat dan mempelajari aturan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan dari pengguna ke dalam memori persisten korporat (SOUL.md) agar selalu dipatuhi di masa mendatang.',
+        parameters: {
+          type: 'object',
+          properties: {
+            rule: { type: 'string', description: 'Aturan atau preferensi spesifik yang harus dipelajari' },
+            category: {
+              type: 'string',
+              enum: ['tone', 'terminology', 'formatting', 'constraint', 'general'],
+              description: 'Kategori direktif yang dipelajari.',
+            },
+            explanation: { type: 'string', description: 'Alasan atau konteks mengapa aturan ini dipelajari dari percakapan.' },
+          },
+          required: ['rule'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -215,6 +234,15 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
 
     const driver = this.driverOverride || getOfficeDriver('Excel');
     try {
+      if (toolCall.name === 'learn_corporate_directive') {
+        const { rule, category, explanation } = toolCall.arguments || {};
+        addLearnedDirective(rule, category || 'general', explanation, 'react_tool');
+        return {
+          success: true,
+          result: `🧠 Berhasil mempelajari direktif korporat: "${rule}" (Kategori: ${category || 'general'}). Aturan ini telah dicatat ke dalam SOUL.md dan akan otomatis diterapkan pada seluruh dokumen mendatang.`,
+        };
+      }
+
       if (toolCall.name === 'read_sheet') {
         const { range } = toolCall.arguments || {};
         const data = (driver.readActiveSheetData ? await driver.readActiveSheetData(range) : await driver.readActiveRange());

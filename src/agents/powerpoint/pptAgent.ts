@@ -7,6 +7,7 @@ import {
   listCrossAppSnapshots,
 } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
+import { addLearnedDirective } from '../../services/storage/soulStorage';
 
 export class PPTAgent implements IAgent {
   id = 'ppt-specialist';
@@ -46,7 +47,8 @@ export class PPTAgent implements IAgent {
       '   - Jika documentText dikosongkan, tool akan otomatis mengambil teks dari dokumen aktif saat ini.\n' +
       '5. VISUALISASI DIAGRAM ALUR PROSES (FLOWCHART):\n' +
       '   - Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di PowerPoint, gunakan tool "insert_process_flowchart" untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke slide presentasi.\n' +
-      '6. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.';
+      '6. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.\n' +
+      '7. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, tema warna, preferensi tata letak/format slide, atau direktif presentasi spesifik, proaktif panggil tool "learn_corporate_directive" untuk menyimpannya ke memori korporat.';
   }
 
   getTools(): ToolDefinition[] {
@@ -261,6 +263,23 @@ export class PPTAgent implements IAgent {
           required: ['textOrSteps'],
         },
       },
+      {
+        name: 'learn_corporate_directive',
+        description: 'Mencatat dan mempelajari aturan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan dari pengguna ke dalam memori persisten korporat (SOUL.md) agar selalu dipatuhi di masa mendatang.',
+        parameters: {
+          type: 'object',
+          properties: {
+            rule: { type: 'string', description: 'Aturan atau preferensi spesifik yang harus dipelajari' },
+            category: {
+              type: 'string',
+              enum: ['tone', 'terminology', 'formatting', 'constraint', 'general'],
+              description: 'Kategori direktif yang dipelajari.',
+            },
+            explanation: { type: 'string', description: 'Alasan atau konteks mengapa aturan ini dipelajari dari percakapan.' },
+          },
+          required: ['rule'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -273,6 +292,15 @@ export class PPTAgent implements IAgent {
 
     const driver = this.driverOverride || getOfficeDriver('PowerPoint');
     try {
+      if (toolCall.name === 'learn_corporate_directive') {
+        const { rule, category, explanation } = toolCall.arguments || {};
+        addLearnedDirective(rule, category || 'general', explanation, 'react_tool');
+        return {
+          success: true,
+          result: `🧠 Berhasil mempelajari direktif korporat: "${rule}" (Kategori: ${category || 'general'}). Aturan ini telah dicatat ke dalam SOUL.md dan akan otomatis diterapkan pada seluruh dokumen mendatang.`,
+        };
+      }
+
       if (toolCall.name === 'read_slides') {
         const { slideNumber, allSlides } = toolCall.arguments || {};
         if (driver.readSlideData) {

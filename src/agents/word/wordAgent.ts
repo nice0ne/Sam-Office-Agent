@@ -9,6 +9,7 @@ import {
   listCrossAppSnapshots,
 } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
+import { addLearnedDirective } from '../../services/storage/soulStorage';
 
 export class WordAgent implements IAgent {
   id = 'word-specialist';
@@ -35,7 +36,8 @@ PANDUAN ALUR KERJA:
 5. Jika pengguna meminta mencari atau mengganti kata/istilah di seluruh dokumen: gunakan \`find_and_replace\`.
 6. Jika pengguna meminta mereview kontrak, kepatuhan klausul, risiko hukum, atau SLA perjanjian: gunakan tool \`review_compliance_clauses\`.
 7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.
-8. Jika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word: gunakan tool \`insert_process_flowchart\` untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen.`;
+8. Jika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word: gunakan tool \`insert_process_flowchart\` untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen.
+9. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah/istilah resmi, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -287,6 +289,23 @@ PANDUAN ALUR KERJA:
           required: ['textOrSteps'],
         },
       },
+      {
+        name: 'learn_corporate_directive',
+        description: 'Mencatat dan mempelajari aturan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan dari pengguna ke dalam memori persisten korporat (SOUL.md) agar selalu dipatuhi di masa mendatang.',
+        parameters: {
+          type: 'object',
+          properties: {
+            rule: { type: 'string', description: 'Aturan atau preferensi spesifik yang harus dipelajari' },
+            category: {
+              type: 'string',
+              enum: ['tone', 'terminology', 'formatting', 'constraint', 'general'],
+              description: 'Kategori direktif yang dipelajari.',
+            },
+            explanation: { type: 'string', description: 'Alasan atau konteks mengapa aturan ini dipelajari dari percakapan.' },
+          },
+          required: ['rule'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -299,6 +318,15 @@ PANDUAN ALUR KERJA:
 
     const driver = this.driverOverride || getOfficeDriver('Word');
     try {
+      if (toolCall.name === 'learn_corporate_directive') {
+        const { rule, category, explanation } = toolCall.arguments || {};
+        addLearnedDirective(rule, category || 'general', explanation, 'react_tool');
+        return {
+          success: true,
+          result: `🧠 Berhasil mempelajari direktif korporat: "${rule}" (Kategori: ${category || 'general'}). Aturan ini telah dicatat ke dalam SOUL.md dan akan otomatis diterapkan pada seluruh dokumen mendatang.`,
+        };
+      }
+
       if (toolCall.name === 'insert_content') {
         const { position, text, type } = toolCall.arguments;
         await driver.insertContent(position, text, type);
