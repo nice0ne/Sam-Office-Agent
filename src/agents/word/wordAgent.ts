@@ -8,6 +8,7 @@ import {
   saveCrossAppSnapshot,
   listCrossAppSnapshots,
 } from '../../services/storage/crossAppBridge';
+import { searchWeb } from '../../services/search';
 
 export class WordAgent implements IAgent {
   id = 'word-specialist';
@@ -241,6 +242,18 @@ PANDUAN ALUR KERJA:
           },
         },
       },
+      {
+        name: 'web_search',
+        description: 'Mencari informasi, data terkini, statistik, kurs valuta asing, harga komoditas, atau fakta terbaru dari internet untuk disintesis dan dimasukkan ke dalam dokumen.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Kata kunci pencarian spesifik di internet' },
+            maxResults: { type: 'number', description: 'Jumlah hasil maksimal (default: 5)' },
+          },
+          required: ['query'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -429,6 +442,27 @@ PANDUAN ALUR KERJA:
           result: `✅ Berhasil membagikan dokumen "${resolvedTitle}" ke Sam Universal Hub (ID: ${snapshot.id}). Data siap diimpor di PowerPoint atau Excel.`,
         };
       }
+
+      if (toolCall.name === 'web_search') {
+        const { query, maxResults } = toolCall.arguments || {};
+        if (!query) {
+          return { success: false, error: 'Query pencarian web tidak boleh kosong.' };
+        }
+        const searchRes = await searchWeb(query, { maxResults });
+        let text = `Hasil pencarian web untuk "${query}":\n\n`;
+        if (searchRes.results.length === 0) {
+          text += 'Tidak ditemukan hasil yang relevan di internet.';
+        } else {
+          searchRes.results.forEach((item, index) => {
+            text += `${index + 1}. **${item.title}**\n${item.snippet}\nTautan: ${item.url}\n\n`;
+          });
+          if (searchRes.citationsFormatted) {
+            text += `\n${searchRes.citationsFormatted}`;
+          }
+        }
+        return { success: true, result: text.trim() };
+      }
+
       return { success: false, error: 'Tool tidak ditemukan.' };
     } catch (e: any) {
       return { success: false, error: e.message };

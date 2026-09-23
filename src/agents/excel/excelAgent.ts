@@ -4,6 +4,7 @@ import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
 import { saveCrossAppSnapshot } from '../../services/storage/crossAppBridge';
+import { searchWeb } from '../../services/search';
 
 export class ExcelAgent implements IAgent {
   id = 'excel-specialist';
@@ -188,6 +189,18 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
             range: { type: 'string', description: 'Range sel tabel opsional (misal: "A1:E20"). Jika kosong, membaca seluruh data aktif.' },
             summaryText: { type: 'string', description: 'Catatan ringkasan eksekutif opsional mengenai data ini.' },
           },
+        },
+      },
+      {
+        name: 'web_search',
+        description: 'Mencari informasi, data terkini, statistik, kurs valuta asing, harga komoditas, atau fakta terbaru dari internet untuk disintesis dan dimasukkan ke dalam dokumen.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Kata kunci pencarian spesifik di internet' },
+            maxResults: { type: 'number', description: 'Jumlah hasil maksimal (default: 5)' },
+          },
+          required: ['query'],
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -430,6 +443,26 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
           success: true,
           result: `✅ Berhasil membagikan data "${resolvedTitle}" ke Sam Universal Hub (ID: ${snapshot.id}). Data siap diimpor di Microsoft Word atau PowerPoint.`,
         };
+      }
+
+      if (toolCall.name === 'web_search') {
+        const { query, maxResults } = toolCall.arguments || {};
+        if (!query) {
+          return { success: false, error: 'Query pencarian web tidak boleh kosong.' };
+        }
+        const searchRes = await searchWeb(query, { maxResults });
+        let text = `Hasil pencarian web untuk "${query}":\n\n`;
+        if (searchRes.results.length === 0) {
+          text += 'Tidak ditemukan hasil yang relevan di internet.';
+        } else {
+          searchRes.results.forEach((item, index) => {
+            text += `${index + 1}. **${item.title}**\n${item.snippet}\nTautan: ${item.url}\n\n`;
+          });
+          if (searchRes.citationsFormatted) {
+            text += `\n${searchRes.citationsFormatted}`;
+          }
+        }
+        return { success: true, result: text.trim() };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };
