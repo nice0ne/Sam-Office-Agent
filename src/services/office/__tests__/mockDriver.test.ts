@@ -174,6 +174,23 @@ Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
     expect(result.slides[0].title).toBeDefined();
     expect(result.slides[0].speakerScript.hook).toBeDefined();
   });
+
+  it('inserts process flowchart and stores diagram result in mock driver', async () => {
+    const driver = new MockOfficeDriver();
+    const result = await driver.insertProcessFlowchart!({
+      textOrSteps: '1. Pengajuan cuti -> 2. Approval atasan -> 3. Selesai',
+      title: 'SOP Cuti Karyawan',
+      theme: 'corporate_navy',
+      caption: 'Gambar 1: Alur Pengajuan Cuti',
+    });
+
+    expect(result.inserted).toBe(true);
+    expect(result.nodeCount).toBeGreaterThanOrEqual(3);
+    expect(result.appliedTheme).toBe('corporate_navy');
+    expect(result.base64Png).toBeDefined();
+    expect(driver.diagrams.length).toBe(1);
+    expect(driver.diagrams[0].title).toBe('SOP Cuti Karyawan');
+  });
 });
 
 describe('getOfficeDriver', () => {

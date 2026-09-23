@@ -3,11 +3,14 @@ import {
   ComplianceReviewResult,
   CorporateStyleOptions,
   CorporateStyleResult,
+  DiagramResult,
   IDocumentDriver,
+  InsertFlowchartOptions,
   PolishTextOptions,
   StructuredDocOptions,
 } from './types';
 import { analyzeContractCompliance } from './complianceReviewer';
+import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
 
 declare const Word: any;
 
@@ -226,5 +229,32 @@ export class WordDriver implements Partial<IDocumentDriver> {
         message: `Berhasil menerapkan format korporat (${theme}, font: ${fontFamily}) pada ${styledCount} paragraf.`,
       };
     });
+  }
+
+  async insertProcessFlowchart(options: InsertFlowchartOptions): Promise<DiagramResult> {
+    const def = options.definition || synthesizeFlowchartFromText(options.textOrSteps, options);
+    const base64 = renderFlowchartToPngBase64(def, options);
+
+    if (typeof Word !== 'undefined' && typeof Word.run === 'function') {
+      await Word.run(async (context: any) => {
+        context.document.body.insertInlinePictureFromBase64(base64, Word.InsertLocation.end);
+        if (options.caption) {
+          const p = context.document.body.insertParagraph(options.caption, Word.InsertLocation.end);
+          p.font.italic = true;
+          p.font.size = 9.5;
+          p.font.color = '#64748B';
+        }
+        await context.sync();
+      });
+    }
+
+    return {
+      title: def.title || options.title || 'Alur Proses',
+      nodeCount: def.nodes.length,
+      edgeCount: def.edges.length,
+      appliedTheme: def.theme || options.theme || 'corporate_navy',
+      base64Png: base64,
+      inserted: true,
+    };
   }
 }

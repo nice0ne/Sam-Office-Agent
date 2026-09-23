@@ -9,10 +9,12 @@ import {
   DataStoryMetric,
   DataStoryOptions,
   DataStoryResult,
+  DiagramResult,
   DocToDeckOptions,
   DocToDeckResult,
   FormulaIssue,
   IDocumentDriver,
+  InsertFlowchartOptions,
   PolishTextOptions,
   SheetAuditResult,
   StructuredDocOptions,
@@ -20,6 +22,7 @@ import {
 } from './types';
 import { analyzeContractCompliance } from './complianceReviewer';
 import { synthesizeDocToDeck } from './docToDeckTransformer';
+import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
@@ -28,6 +31,7 @@ export class MockOfficeDriver implements IDocumentDriver {
   private excelGrid: Record<string, any[][]> = {};
   private wordContent: string[] = [];
   slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
+  diagrams: DiagramResult[] = [];
 
   async readActiveRange() {
     if (this.mockData && this.mockData.length > 0) {
@@ -381,6 +385,21 @@ export class MockOfficeDriver implements IDocumentDriver {
         layout: slide.category === 'cover' ? 'title_cover' : 'bullet_points',
       });
     }
+    return result;
+  }
+
+  async insertProcessFlowchart(options: InsertFlowchartOptions): Promise<DiagramResult> {
+    const def = options.definition || synthesizeFlowchartFromText(options.textOrSteps, options);
+    const base64 = renderFlowchartToPngBase64(def, options);
+    const result: DiagramResult = {
+      title: def.title || options.title || 'Alur Proses',
+      nodeCount: def.nodes.length,
+      edgeCount: def.edges.length,
+      appliedTheme: def.theme || options.theme || 'corporate_navy',
+      base64Png: base64,
+      inserted: true,
+    };
+    this.diagrams.push(result);
     return result;
   }
 

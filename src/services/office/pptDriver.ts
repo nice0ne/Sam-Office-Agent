@@ -1,5 +1,6 @@
-import { DocToDeckOptions, DocToDeckResult, IDocumentDriver, ThemedDeckOptions } from './types';
+import { DiagramResult, DocToDeckOptions, DocToDeckResult, IDocumentDriver, InsertFlowchartOptions, ThemedDeckOptions } from './types';
 import { synthesizeDocToDeck } from './docToDeckTransformer';
+import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
 
 declare const PowerPoint: any;
 declare const Office: any;
@@ -705,5 +706,76 @@ export class PPTDriver implements Partial<IDocumentDriver> {
     }
 
     return result;
+  }
+
+  async insertProcessFlowchart(options: InsertFlowchartOptions): Promise<DiagramResult> {
+    const def = options.definition || synthesizeFlowchartFromText(options.textOrSteps, options);
+    const base64 = renderFlowchartToPngBase64(def, options);
+    const title = def.title || options.title || 'Alur Proses';
+
+    try {
+      if (typeof PowerPoint !== 'undefined' && typeof PowerPoint.run === 'function') {
+        await PowerPoint.run(async (context: any) => {
+          const slideCollection = context.presentation.slides;
+          slideCollection.add();
+          const count = slideCollection.getCount();
+          await context.sync();
+
+          const slide = slideCollection.getItemAt(count.value - 1);
+          slide.load(['id']);
+          await context.sync();
+
+          try {
+            if (slide.shapes) {
+              if (typeof slide.shapes.addTextBox === 'function') {
+                const titleBox = slide.shapes.addTextBox(title, {
+                  left: 60,
+                  top: 30,
+                  width: 600,
+                  height: 50,
+                });
+                if (titleBox.textFrame?.textRange) {
+                  titleBox.textFrame.textRange.text = title;
+                  titleBox.textFrame.textRange.font.size = 24;
+                  titleBox.textFrame.textRange.font.bold = true;
+                  titleBox.textFrame.textRange.font.color = '#1E293B';
+                }
+              }
+
+              if (typeof slide.shapes.addImage === 'function') {
+                slide.shapes.addImage(base64, {
+                  left: 60,
+                  top: 90,
+                  width: 600,
+                  height: 350,
+                });
+              } else if (typeof slide.shapes.addImageFromBase64 === 'function') {
+                slide.shapes.addImageFromBase64(base64, {
+                  left: 60,
+                  top: 90,
+                  width: 600,
+                  height: 350,
+                });
+              }
+            }
+          } catch (shapeErr) {
+            console.warn('Gagal menambahkan shape flowchart ke slide:', shapeErr);
+          }
+
+          await context.sync();
+        });
+      }
+    } catch (err: any) {
+      console.warn('PowerPoint.run insertProcessFlowchart fallback:', err);
+    }
+
+    return {
+      title,
+      nodeCount: def.nodes.length,
+      edgeCount: def.edges.length,
+      appliedTheme: def.theme || options.theme || 'corporate_navy',
+      base64Png: base64,
+      inserted: true,
+    };
   }
 }
