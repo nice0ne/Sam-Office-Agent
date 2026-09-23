@@ -46,6 +46,7 @@ describe('Specialist Agents Tools & Prompts', () => {
     expect(toolNames).toContain('insert_slide_content');
     expect(toolNames).toContain('set_speaker_notes');
     expect(toolNames).toContain('generate_themed_deck');
+    expect(toolNames).toContain('transform_doc_to_deck');
     expect(agent.id).toBe('ppt-specialist');
     expect(agent.hostType).toBe('PowerPoint');
   });
@@ -640,6 +641,32 @@ describe('Specialist Agents Tools & Prompts', () => {
 
       expect(res.success).toBe(false);
       expect(res.error).toContain('wajib diisi');
+    });
+
+    it('provides transform_doc_to_deck tool and formats executive presentation dashboard', async () => {
+      const mockDriver = new MockOfficeDriver();
+      const testAgent = new PPTAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'transform_doc_to_deck')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        {
+          id: 'ppt-doc-1',
+          name: 'transform_doc_to_deck',
+          arguments: {
+            documentText: 'Proposal Modernisasi TI. Masalah: Sistem warisan lambat. Solusi: Migrasi cloud modern. Metrik: Uptime 99.9%. Rencana: Q4 Go-live.',
+            theme: 'corporate_blue',
+          },
+          status: 'pending',
+        },
+        { host: 'PowerPoint' }
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Transformasi Dokumen ke Slide Presentasi');
+      expect(res.result).toContain('Naskah Presenter');
+      expect(res.result).toContain('Pembuka');
+      expect(res.result).toContain('Transisi');
     });
   });
 });

@@ -8,6 +8,8 @@ export class PPTAgent implements IAgent {
   name = 'PowerPoint Specialist';
   hostType = 'PowerPoint' as const;
 
+  constructor(private driverOverride?: any) {}
+
   getSystemPrompt(context: AgentContext): string {
     const summaryHeader = context.documentSummary
       ? '\n--- SLIDE / MATERI SAAT INI ---\n' + context.documentSummary + '\n----------------------------\n'
@@ -33,7 +35,11 @@ export class PPTAgent implements IAgent {
       '   - BATASAN TEKNIS OFFICE.JS: Microsoft PowerPoint JavaScript API (Office.js) secara resmi TIDAK menyediakan API untuk menulis langsung ke panel Notes bawaan PowerPoint (properti slide.notesPage tidak ada/tidak diekspos oleh Microsoft).\n' +
       '   - JANGAN PERNAH membuat dynamic office script yang memanggil "slide.notesPage" karena akan error runtime.\n' +
       '   - Jika pengguna meminta speaker notes untuk satu atau seluruh slide: Sajikan naskah speaker notes yang terstruktur, elegan, dan siap pakai langsung di pesan chat dengan format per slide (Intonasi, Naskah Penyampaian, Poin Nilai Juri, Transisi) agar pemateri dapat langsung menyalinnya ke panel Notes PowerPoint atau menjadikannya lembar panduan saat presentasi.\n' +
-      '4. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.';
+      '4. TRANSFORMASI DOKUMEN KE SLIDE PRESENTASI (DOC-TO-DECK):\n' +
+      '   - Gunakan tool "transform_doc_to_deck" untuk mengubah teks dokumen, proposal, memo, atau laporan menjadi rangkaian slide presentasi eksekutif terstruktur (Executive Storyline Arc).\n' +
+      '   - Tool ini secara komprehensif menghasilkan naskah presenter (hook, poin elaborasi, transisi) untuk setiap slide.\n' +
+      '   - Jika documentText dikosongkan, tool akan otomatis mengambil teks dari dokumen aktif saat ini.\n' +
+      '5. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.';
   }
 
   getTools(): ToolDefinition[] {
@@ -173,17 +179,35 @@ export class PPTAgent implements IAgent {
           required: ['topic', 'slides'],
         },
       },
+      {
+        name: 'transform_doc_to_deck',
+        description: 'Mengubah teks dokumen, ringkasan laporan, atau data bisnis menjadi rangkaian slide presentasi eksekutif terstruktur (Executive Storyline Arc) lengkap dengan naskah pemateri (speaker notes) per slide.',
+        parameters: {
+          type: 'object',
+          properties: {
+            documentText: { type: 'string', description: 'Teks dokumen mentah yang ingin diubah menjadi slide presentasi (opsional, jika kosong membaca konteks aktif).' },
+            targetSlideCount: { type: 'number', description: 'Target jumlah slide yang dihasilkan (default: 5).' },
+            theme: {
+              type: 'string',
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
+              description: 'Tema desain visual presentasi korporat.',
+            },
+            presentationTitle: { type: 'string', description: 'Judul presentasi kustom (opsional).' },
+            targetAudience: { type: 'string', enum: ['executive', 'technical', 'team_all_hands'], description: 'Target audiens presentasi (opsional).' },
+          },
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
 
-  async executeTool(toolCall: ToolCall, _context: AgentContext): Promise<{ success: boolean; result?: any; error?: string }> {
-    const metaCheck = await executeMetaOrCustomTool(this.hostType, toolCall, _context);
+  async executeTool(toolCall: ToolCall, context: AgentContext): Promise<{ success: boolean; result?: any; error?: string }> {
+    const metaCheck = await executeMetaOrCustomTool(this.hostType, toolCall, context);
     if (metaCheck.handled) {
       return metaCheck.result!;
     }
 
-    const driver = getOfficeDriver('PowerPoint');
+    const driver = this.driverOverride || getOfficeDriver('PowerPoint');
     try {
       if (toolCall.name === 'read_slides') {
         const { slideNumber, allSlides } = toolCall.arguments || {};
@@ -256,6 +280,42 @@ export class PPTAgent implements IAgent {
           if (s.notes) await driver.setSpeakerNotes(s.notes);
         }
         return { success: true, result: `Deck bertema "${theme || 'corporate_blue'}" berhasil dibuat (${slides.length} slide).` };
+      }
+
+      if (toolCall.name === 'transform_doc_to_deck') {
+        const { documentText, targetSlideCount, theme, presentationTitle, targetAudience } = toolCall.arguments || {};
+        const textToTransform = documentText || context.documentSummary || '';
+        if (driver.transformDocToDeck) {
+          const res = await driver.transformDocToDeck({
+            documentText: textToTransform,
+            targetSlideCount,
+            theme,
+            presentationTitle,
+            targetAudience,
+          });
+
+          let output = `### 📊 Hasil Transformasi Dokumen ke Slide Presentasi: ${res.deckTitle}\n`;
+          output += `Tema: ${res.appliedTheme} | Total Slide: ${res.totalSlidesCreated}\n\n`;
+
+          const slideCards = res.slides.map((slide: any, idx: number) => {
+            const bulletsStr = slide.bullets.map((b: string) => `  - ${b}`).join('\n');
+            const talkingPoints = slide.speakerScript.keyTalkingPoints.map((tp: string) => `    * ${tp}`).join('\n');
+            const metricsStr = slide.metrics && slide.metrics.length > 0
+              ? `\n  - **Metrik:**\n` + slide.metrics.map((m: any) => `    * ${m.label}: ${m.value}${m.trend ? ` (${m.trend})` : ''}`).join('\n')
+              : '';
+
+            return `#### Slide ${idx + 1}: ${slide.title} [${slide.category.toUpperCase()}]\n` +
+              `*Poin Slide:*\n${bulletsStr}${metricsStr}\n\n` +
+              `🎙️ **Naskah Presenter (Speaker Notes)**:\n` +
+              `- **Pembuka (Hook):** "${slide.speakerScript.hook}"\n` +
+              `- **Poin Elaborasi:**\n${talkingPoints}\n` +
+              `- **Transisi ke Slide Berikutnya:** "${slide.speakerScript.transition}"`;
+          });
+
+          output += slideCards.join('\n\n---\n\n');
+          return { success: true, result: output.trim() };
+        }
+        return { success: false, error: 'Driver PowerPoint tidak mendukung transformDocToDeck.' };
       }
 
       if (toolCall.name === 'add_slide') {
