@@ -34,7 +34,8 @@ PANDUAN ALUR KERJA:
 4. Jika pengguna secara spesifik meminta membuat halaman baru / jeda halaman di Word: gunakan \`insert_page_break\`.
 5. Jika pengguna meminta mencari atau mengganti kata/istilah di seluruh dokumen: gunakan \`find_and_replace\`.
 6. Jika pengguna meminta mereview kontrak, kepatuhan klausul, risiko hukum, atau SLA perjanjian: gunakan tool \`review_compliance_clauses\`.
-7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.`;
+7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.
+8. Jika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word: gunakan tool \`insert_process_flowchart\` untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -254,6 +255,38 @@ PANDUAN ALUR KERJA:
           required: ['query'],
         },
       },
+      {
+        name: 'insert_process_flowchart',
+        description: 'Membuat diagram alur proses bisnis/SOP (flowchart visual profesional) dari teks atau deskripsi alur kerja, lalu langsung menyisipkannya sebagai gambar tajam ke dokumen Word.',
+        parameters: {
+          type: 'object',
+          properties: {
+            textOrSteps: {
+              type: 'string',
+              description: 'Deskripsi proses, SOP, atau langkah-langkah alur kerja yang ingin divisualisasikan.',
+            },
+            title: {
+              type: 'string',
+              description: 'Judul diagram alur (misal: "Alur Pengajuan Cuti Karyawan").',
+            },
+            theme: {
+              type: 'string',
+              enum: ['corporate_navy', 'emerald_executive', 'modern_dark', 'amber_warm'],
+              description: 'Tema warna korporat yang selaras dengan dokumen.',
+            },
+            direction: {
+              type: 'string',
+              enum: ['TD', 'LR'],
+              description: 'Arah diagram: TD (Top-Down) atau LR (Left-Right).',
+            },
+            caption: {
+              type: 'string',
+              description: 'Keterangan gambar/caption di bawah diagram.',
+            },
+          },
+          required: ['textOrSteps'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -461,6 +494,25 @@ PANDUAN ALUR KERJA:
           }
         }
         return { success: true, result: text.trim() };
+      }
+
+      if (toolCall.name === 'insert_process_flowchart') {
+        const { textOrSteps, title, theme, direction, caption } = toolCall.arguments || {};
+        const steps = textOrSteps || _context.documentSummary || '1. Mulai -> 2. Proses -> 3. Selesai';
+        if (driver.insertProcessFlowchart) {
+          const res = await driver.insertProcessFlowchart({
+            textOrSteps: steps,
+            title,
+            theme,
+            direction,
+            caption: caption || `Gambar: ${title || 'Diagram Alur Proses'}`,
+          });
+          return {
+            success: true,
+            result: `### 🔄 Diagram Alur Proses Berhasil Disisipkan: ${res.title}\n\n- **Tema:** ${res.appliedTheme}\n- **Jumlah Tahapan/Node:** ${res.nodeCount}\n- **Jumlah Relasi/Alur:** ${res.edgeCount}\n- **Status:** Berhasil disisipkan sebagai gambar beresolusi tinggi ke dalam dokumen Word.`,
+          };
+        }
+        return { success: false, error: 'Driver Word tidak mendukung insertProcessFlowchart.' };
       }
 
       return { success: false, error: 'Tool tidak ditemukan.' };

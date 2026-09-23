@@ -44,7 +44,9 @@ export class PPTAgent implements IAgent {
       '   - Gunakan tool "transform_doc_to_deck" untuk mengubah teks dokumen, proposal, memo, atau laporan menjadi rangkaian slide presentasi eksekutif terstruktur (Executive Storyline Arc).\n' +
       '   - Tool ini secara komprehensif menghasilkan naskah presenter (hook, poin elaborasi, transisi) untuk setiap slide.\n' +
       '   - Jika documentText dikosongkan, tool akan otomatis mengambil teks dari dokumen aktif saat ini.\n' +
-      '5. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.';
+      '5. VISUALISASI DIAGRAM ALUR PROSES (FLOWCHART):\n' +
+      '   - Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di PowerPoint, gunakan tool "insert_process_flowchart" untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke slide presentasi.\n' +
+      '6. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.';
   }
 
   getTools(): ToolDefinition[] {
@@ -229,6 +231,34 @@ export class PPTAgent implements IAgent {
             maxResults: { type: 'number', description: 'Jumlah hasil maksimal (default: 5)' },
           },
           required: ['query'],
+        },
+      },
+      {
+        name: 'insert_process_flowchart',
+        description: 'Membuat diagram alur proses bisnis/SOP (flowchart visual profesional) dari teks alur kerja dan langsung menyisipkannya sebagai slide visual khusus di PowerPoint.',
+        parameters: {
+          type: 'object',
+          properties: {
+            textOrSteps: {
+              type: 'string',
+              description: 'Deskripsi alur kerja atau tahapan SOP.',
+            },
+            title: {
+              type: 'string',
+              description: 'Judul slide diagram alur.',
+            },
+            theme: {
+              type: 'string',
+              enum: ['corporate_navy', 'emerald_executive', 'modern_dark', 'amber_warm'],
+              description: 'Tema warna korporat presentasi.',
+            },
+            direction: {
+              type: 'string',
+              enum: ['TD', 'LR'],
+              description: 'Arah diagram alur.',
+            },
+          },
+          required: ['textOrSteps'],
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -454,6 +484,31 @@ export class PPTAgent implements IAgent {
         }
         return { success: true, result: text.trim() };
       }
+
+      if (toolCall.name === 'insert_process_flowchart') {
+        const { textOrSteps, title, theme, direction } = toolCall.arguments || {};
+        const steps = textOrSteps || context.documentSummary || '1. Mulai -> 2. Proses -> 3. Selesai';
+        if (driver.insertProcessFlowchart) {
+          const res = await driver.insertProcessFlowchart({
+            textOrSteps: steps,
+            title,
+            theme,
+            direction,
+          });
+          const diagramTitle = res.title || title || 'Diagram Alur Proses';
+          return {
+            success: true,
+            result: `### 🔄 Diagram Alur Proses Berhasil Disisipkan ke Slide: ${diagramTitle}\n\n` +
+              `- **Tema Presentasi:** ${res.appliedTheme}\n` +
+              `- **Total Tahapan Alur:** ${res.nodeCount} node\n` +
+              `- **Total Relasi:** ${res.edgeCount} koneksi\n\n` +
+              `🎙️ **Naskah Pemateri (Speaker Script):**\n` +
+              `*"Bapak/Ibu sekalian, slide visual ini memetakan alur proses '${diagramTitle}'. Terdapat ${res.nodeCount} tahapan kunci yang tersusun secara sistematis dari awal hingga evaluasi akhir guna menjamin operasional berjalan optimal."*`,
+          };
+        }
+        return { success: false, error: 'Driver PowerPoint tidak mendukung insertProcessFlowchart.' };
+      }
+
       return { success: false, error: 'Tool tidak ditemukan.' };
     } catch (e: any) {
       return { success: false, error: e.message };
