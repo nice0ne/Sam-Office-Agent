@@ -1,4 +1,5 @@
-import { IDocumentDriver, ThemedDeckOptions } from './types';
+import { DocToDeckOptions, DocToDeckResult, IDocumentDriver, ThemedDeckOptions } from './types';
+import { synthesizeDocToDeck } from './docToDeckTransformer';
 
 declare const PowerPoint: any;
 declare const Office: any;
@@ -588,5 +589,121 @@ export class PPTDriver implements Partial<IDocumentDriver> {
     }
 
     return { success: true, createdCount: options.slides.length };
+  }
+
+  async transformDocToDeck(options?: DocToDeckOptions): Promise<DocToDeckResult> {
+    const result = synthesizeDocToDeck(options?.documentText, options);
+    const theme = options?.theme || 'corporate_blue';
+
+    try {
+      if (typeof PowerPoint !== 'undefined' && typeof PowerPoint.run === 'function') {
+        await PowerPoint.run(async (context: any) => {
+          const slideCollection = context.presentation.slides;
+
+          const themePalette: Record<string, { primary: string; secondary: string; bg: string; text: string }> = {
+            corporate_blue: { primary: '#1E3A8A', secondary: '#3B82F6', bg: '#F8FAFC', text: '#1E293B' },
+            emerald_executive: { primary: '#065F46', secondary: '#10B981', bg: '#F0FDF4', text: '#0F172A' },
+            modern_dark: { primary: '#38BDF8', secondary: '#818CF8', bg: '#0F172A', text: '#F8FAFC' },
+            minimalist_clean: { primary: '#18181B', secondary: '#71717A', bg: '#FFFFFF', text: '#27272A' },
+          };
+          const colors = themePalette[theme] || themePalette.corporate_blue;
+
+          for (const s of result.slides) {
+            slideCollection.add();
+            const count = slideCollection.getCount();
+            await context.sync();
+
+            const slide = slideCollection.getItemAt(count.value - 1);
+            slide.load(['id']);
+            await context.sync();
+
+            try {
+              if (slide.shapes) {
+                if (typeof slide.shapes.addGeometricShape === 'function') {
+                  const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
+                  const bgRect = slide.shapes.addGeometricShape(rectType, {
+                    left: 0,
+                    top: 0,
+                    width: 720,
+                    height: 405,
+                  });
+                  if (bgRect.fill?.setSolidColor) {
+                    bgRect.fill.setSolidColor(colors.bg);
+                  }
+                }
+
+                if (typeof slide.shapes.addTextBox === 'function') {
+                  if (s.category === 'cover') {
+                    const titleBox = slide.shapes.addTextBox(s.title, {
+                      left: 60,
+                      top: 120,
+                      width: 600,
+                      height: 100,
+                    });
+                    if (titleBox.textFrame?.textRange) {
+                      titleBox.textFrame.textRange.text = s.title;
+                      titleBox.textFrame.textRange.font.size = 36;
+                      titleBox.textFrame.textRange.font.bold = true;
+                      titleBox.textFrame.textRange.font.color = colors.primary;
+                    }
+                    if (s.bullets && s.bullets.length > 0) {
+                      const subtitleText = s.bullets.join('  •  ');
+                      const subBox = slide.shapes.addTextBox(subtitleText, {
+                        left: 60,
+                        top: 230,
+                        width: 600,
+                        height: 60,
+                      });
+                      if (subBox.textFrame?.textRange) {
+                        subBox.textFrame.textRange.text = subtitleText;
+                        subBox.textFrame.textRange.font.size = 20;
+                        subBox.textFrame.textRange.font.color = colors.secondary;
+                      }
+                    }
+                  } else {
+                    const titleBox = slide.shapes.addTextBox(s.title, {
+                      left: 60,
+                      top: 40,
+                      width: 600,
+                      height: 60,
+                    });
+                    if (titleBox.textFrame?.textRange) {
+                      titleBox.textFrame.textRange.text = s.title;
+                      titleBox.textFrame.textRange.font.size = 28;
+                      titleBox.textFrame.textRange.font.bold = true;
+                      titleBox.textFrame.textRange.font.color = colors.primary;
+                    }
+
+                    if (s.bullets && s.bullets.length > 0) {
+                      const bulletText = s.bullets.map((b) => `• ${b}`).join('\n\n');
+                      const bodyBox = slide.shapes.addTextBox(bulletText, {
+                        left: 60,
+                        top: 120,
+                        width: 600,
+                        height: 250,
+                      });
+                      if (bodyBox.textFrame?.textRange) {
+                        bodyBox.textFrame.textRange.text = bulletText;
+                        bodyBox.textFrame.textRange.font.size = 18;
+                        bodyBox.textFrame.textRange.font.color = colors.text;
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (shapeErr) {
+              console.warn('Gagal menambahkan shape ber-tema ke slide:', shapeErr);
+            }
+
+            await context.sync();
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error('PowerPoint.run transformDocToDeck error:', err);
+      throw new Error(`Gagal mentransformasi dokumen ke slide PowerPoint: ${err.message || String(err)}`);
+    }
+
+    return result;
   }
 }

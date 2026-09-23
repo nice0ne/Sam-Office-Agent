@@ -156,6 +156,24 @@ describe('MockOfficeDriver', () => {
     expect(styleRes.styledParagraphsCount).toBeGreaterThan(0);
     expect(styleRes.headingsCount).toBeGreaterThan(0);
   });
+
+  it('transforms document text into executive slide deck in mock driver', async () => {
+    const driver = new MockOfficeDriver();
+    const sampleDoc = `Rencana Kerja Q4
+Tantangan: Keterlambatan konsolidasi anggaran antar divisi.
+Solusi: Sistem approval satu pintu berbasis Office Add-in.
+Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
+
+    const result = await driver.transformDocToDeck!({
+      documentText: sampleDoc,
+      theme: 'corporate_blue',
+    });
+
+    expect(result.totalSlidesCreated).toBeGreaterThanOrEqual(4);
+    expect(driver.slides.length).toBe(result.totalSlidesCreated);
+    expect(result.slides[0].title).toBeDefined();
+    expect(result.slides[0].speakerScript.hook).toBeDefined();
+  });
 });
 
 describe('getOfficeDriver', () => {

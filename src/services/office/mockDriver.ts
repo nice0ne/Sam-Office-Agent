@@ -10,6 +10,8 @@ import {
   DataStoryMetric,
   DataStoryOptions,
   DataStoryResult,
+  DocToDeckOptions,
+  DocToDeckResult,
   FormulaIssue,
   IDocumentDriver,
   PolishTextOptions,
@@ -18,6 +20,7 @@ import {
   ThemedDeckOptions,
 } from './types';
 import { analyzeContractCompliance } from './complianceReviewer';
+import { synthesizeDocToDeck } from './docToDeckTransformer';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
@@ -25,7 +28,7 @@ export class MockOfficeDriver implements IDocumentDriver {
   mockWordBody?: string;
   private excelGrid: Record<string, any[][]> = {};
   private wordContent: string[] = [];
-  private slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
+  slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
 
   async readActiveRange() {
     if (this.mockData && this.mockData.length > 0) {
@@ -359,6 +362,27 @@ export class MockOfficeDriver implements IDocumentDriver {
       success: true,
       createdCount: options.slides.length,
     };
+  }
+
+  async transformDocToDeck(options?: DocToDeckOptions): Promise<DocToDeckResult> {
+    const result = synthesizeDocToDeck(options?.documentText, options);
+    for (const slide of result.slides) {
+      const notes = [
+        slide.speakerScript.hook,
+        ...slide.speakerScript.keyTalkingPoints,
+        slide.speakerScript.transition,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+
+      this.slides.push({
+        title: slide.title,
+        bullets: slide.bullets,
+        notes,
+        layout: slide.category === 'cover' ? 'title_cover' : 'bullet_points',
+      });
+    }
+    return result;
   }
 
   async readSlideData(slideNumber?: number, allSlides = true): Promise<{
