@@ -78,3 +78,33 @@ export type AgentAction = ActionQueueItem;
 export type ExecutionMode = 'copilot' | 'autopilot';
 
 export type { PendingActionProposal };
+
+export type CrossAppArtifactType =
+  | 'table_data'
+  | 'executive_summary'
+  | 'chart_metrics'
+  | 'presentation_outline';
+
+export interface CrossAppTableData {
+  headers: string[];
+  rows: (string | number)[][];
+  totalRows: number;
+}
+
+export interface CrossAppMetric {
+  label: string;
+  value: string;
+  trend?: string;
+}
+
+export interface CrossAppSnapshot {
+  id: string;
+  sourceHost: HostType;
+  title: string;
+  artifactType: CrossAppArtifactType;
+  tableData?: CrossAppTableData;
+  summaryText?: string;
+  metrics?: CrossAppMetric[];
+  timestamp: number;
+  metadata?: Record<string, any>;
+}
