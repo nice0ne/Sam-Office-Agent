@@ -567,4 +567,15 @@ describe('SettingsModal Component', () => {
     expect(screen.getByText(/Pencarian Web/i)).toBeInTheDocument();
     expect(screen.getByText(/DuckDuckGo/i)).toBeInTheDocument();
   });
+
+  it('renders Brand Voice & SOUL section with corporate name and presets in SettingsModal', () => {
+    render(<SettingsModal isOpen={true} onClose={vi.fn()} onSaved={vi.fn()} />);
+    expect(screen.getByText(/Brand Voice & Pedoman Korporat/i)).toBeInTheDocument();
+    expect(screen.getByText(/Formal Eksekutif/i)).toBeInTheDocument();
+    expect(screen.getByText(/Modern & Ringkas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Finansial & Kepatuhan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ekspor SOUL\.md/i)).toBeInTheDocument();
+    expect(screen.getByText(/Impor SOUL\.md/i)).toBeInTheDocument();
+  });
 });
+

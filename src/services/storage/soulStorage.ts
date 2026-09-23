@@ -1,4 +1,5 @@
 import { BrandVoicePreset, DirectiveCategory, LearnedDirective, SoulConfig } from '../../types';
+export type { BrandVoicePreset };
 
 export const STORAGE_KEY = 'sam_office_soul_config';
 

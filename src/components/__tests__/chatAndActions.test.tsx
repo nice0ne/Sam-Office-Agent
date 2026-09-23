@@ -880,7 +880,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(7);
+    expect(buttons.length).toBe(8);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -946,7 +946,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -1011,7 +1011,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(7);
+    expect(buttons.length).toBe(8);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
@@ -1093,6 +1093,15 @@ describe('QuickActionPresets Component', () => {
       <QuickActionPresets host="PowerPoint" onSelectPreset={vi.fn()} />
     );
     expect(screen.getByText(/Slide Flowchart Alur/i)).toBeInTheDocument();
+  });
+
+  it('renders universal quick action preset "Pelajari Preferensi Ini" across hosts', () => {
+    const hosts: ('Excel' | 'Word' | 'PowerPoint' | 'BrowserDev')[] = ['Excel', 'Word', 'PowerPoint', 'BrowserDev'];
+    for (const host of hosts) {
+      const onSelect = vi.fn();
+      const html = renderToString(<QuickActionPresets host={host} onSelectPreset={onSelect} />);
+      expect(html).toContain('Pelajari Preferensi Ini');
+    }
   });
 });
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ProviderConfig, ProviderId } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { ProviderConfig, ProviderId, SoulConfig } from '../../types';
 import {
   getSettings,
   saveSettings,
@@ -8,6 +8,15 @@ import {
   setSearchSettings,
   SearchSettings,
 } from '../../services/storage/settingsStorage';
+import {
+  getSoulConfig,
+  saveSoulConfig,
+  removeLearnedDirective,
+  exportSoulToMarkdown,
+  importSoulFromMarkdown,
+  BrandVoicePreset,
+  SOUL_PRESETS,
+} from '../../services/storage/soulStorage';
 import { testProviderConnection } from '../../services/llm/factory';
 import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from '../../utils/theme';
 import {
@@ -22,6 +31,9 @@ import {
   Monitor,
   ChevronDown,
   Globe,
+  BookOpen,
+  Download,
+  Upload,
 } from 'lucide-react';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
@@ -64,6 +76,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>(() => currentTheme || getStoredThemeMode());
   const [searchSettings, setLocalSearchSettings] = useState<SearchSettings>(() => getSearchSettings());
+  const [soulConfig, setSoulConfig] = useState<SoulConfig>(() => getSoulConfig());
+  const soulFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,6 +87,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setTestResult(null);
       setSelectedTheme(currentTheme || getStoredThemeMode());
       setLocalSearchSettings(getSearchSettings());
+      setSoulConfig(getSoulConfig());
     }
   }, [isOpen, currentTheme]);
 
@@ -179,6 +194,85 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onThemeChange?.(mode);
   };
 
+  const handleToggleSoul = (enabled: boolean) => {
+    const updated = { ...soulConfig, enabled };
+    setSoulConfig(updated);
+    saveSoulConfig(updated);
+  };
+
+  const handleCorporateNameChange = (corporateName: string) => {
+    const updated = { ...soulConfig, corporateName };
+    setSoulConfig(updated);
+    saveSoulConfig(updated);
+  };
+
+  const handleSelectPreset = (preset: BrandVoicePreset) => {
+    const updatedMarkdown = preset === 'custom' ? soulConfig.rawSoulMarkdown : (SOUL_PRESETS[preset] || soulConfig.rawSoulMarkdown);
+    const updated = {
+      ...soulConfig,
+      brandVoicePreset: preset,
+      rawSoulMarkdown: updatedMarkdown,
+    };
+    setSoulConfig(updated);
+    saveSoulConfig(updated);
+  };
+
+  const handleRawSoulChange = (text: string) => {
+    const updated = {
+      ...soulConfig,
+      rawSoulMarkdown: text,
+      brandVoicePreset: 'custom' as BrandVoicePreset,
+    };
+    setSoulConfig(updated);
+    saveSoulConfig(updated);
+  };
+
+  const handleDeleteDirective = (id: string) => {
+    removeLearnedDirective(id);
+    const updatedDirectives = soulConfig.learnedDirectives.filter(d => d.id !== id);
+    const updated = { ...soulConfig, learnedDirectives: updatedDirectives };
+    setSoulConfig(updated);
+  };
+
+  const handleExportSoul = () => {
+    try {
+      const mdContent = exportSoulToMarkdown();
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'SOUL.md';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Gagal mengekspor SOUL.md:', err);
+    }
+  };
+
+  const handleImportSoul = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result;
+        if (typeof content === 'string') {
+          const updated = importSoulFromMarkdown(content);
+          setSoulConfig(updated);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      console.error('Gagal mengimpor SOUL.md:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const handleSaveAndApply = () => {
     const updatedSettings = {
       ...settings,
@@ -187,6 +281,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     saveSettings(updatedSettings);
     setActiveProvider(activeTab);
     setSearchSettings(searchSettings);
+    saveSoulConfig(soulConfig);
     onSaved?.();
     onClose();
   };
@@ -371,6 +466,144 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Brand Voice & Pedoman Korporat (SOUL.md) */}
+          <div className="p-2.5 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Brand Voice &amp; Pedoman Korporat (SOUL.md)
+                </span>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={soulConfig.enabled}
+                  onChange={e => handleToggleSoul(e.target.checked)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                />
+                <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                  Aktifkan Corporate Directives (SOUL.md)
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Nama Entitas / Perusahaan
+              </label>
+              <input
+                type="text"
+                value={soulConfig.corporateName}
+                onChange={e => handleCorporateNameChange(e.target.value)}
+                placeholder="Nama Entitas / Perusahaan (contoh: PT Maju Bersama)"
+                className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Preset Karakter Brand Voice
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'formal_executive', label: 'Formal Eksekutif', desc: 'Baku, data-driven, wibawa' },
+                  { id: 'modern_professional', label: 'Modern & Ringkas', desc: 'Agile, lugas, aktif' },
+                  { id: 'financial_compliance', label: 'Finansial & Kepatuhan', desc: 'Audit, mitigasi risiko' },
+                  { id: 'custom', label: 'Kustom', desc: 'Aturan disesuaikan sendiri' },
+                ].map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset.id as BrandVoicePreset)}
+                    className={`py-1.5 px-2.5 rounded-md text-left flex flex-col transition-all border ${
+                      soulConfig.brandVoicePreset === preset.id
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 shadow-2xs'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                    }`}
+                  >
+                    <span className="text-xs font-semibold">{preset.label}</span>
+                    <span className="text-[10px] opacity-75">{preset.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Pedoman SOUL Markdown (SOUL.md)
+              </label>
+              <textarea
+                rows={5}
+                value={soulConfig.rawSoulMarkdown}
+                onChange={e => handleRawSoulChange(e.target.value)}
+                placeholder="# SOUL & CORPORATE BRAND DIRECTIVES..."
+                className="w-full text-[11px] font-mono p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed resize-y"
+              />
+            </div>
+
+            {/* Direktif yang Dipelajari Mandiri */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                  Direktif yang Dipelajari Mandiri ({soulConfig.learnedDirectives?.length || 0})
+                </span>
+              </div>
+              {soulConfig.learnedDirectives && soulConfig.learnedDirectives.length > 0 ? (
+                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1 bg-white/60 dark:bg-gray-855/60 rounded border border-gray-200/80 dark:border-gray-700/60">
+                  {soulConfig.learnedDirectives.map(d => (
+                    <div
+                      key={d.id}
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50"
+                    >
+                      <span className="font-semibold uppercase text-[9px] opacity-80">[{d.category}]</span>
+                      <span className="max-w-[200px] truncate" title={d.rule}>{d.rule}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteDirective(d.id)}
+                        className="text-gray-400 hover:text-red-500 font-bold ml-0.5 leading-none"
+                        title="Hapus direktif ini"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-400 italic">
+                  Belum ada aturan yang dipelajari mandiri. Sam akan otomatis mencatat preferensi gaya Anda.
+                </p>
+              )}
+            </div>
+
+            {/* Ekspor & Impor SOUL.md */}
+            <div className="flex items-center gap-2 pt-1 border-t border-gray-200/60 dark:border-gray-700/60">
+              <input
+                type="file"
+                ref={soulFileInputRef}
+                accept=".md,text/markdown"
+                className="hidden"
+                onChange={handleImportSoul}
+              />
+              <button
+                type="button"
+                onClick={handleExportSoul}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 transition shadow-2xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Ekspor SOUL.md</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => soulFileInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 transition shadow-2xs"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Impor SOUL.md</span>
+              </button>
+            </div>
           </div>
 
           {/* Pilihan Tema Tampilan */}
