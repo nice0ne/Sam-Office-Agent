@@ -3,6 +3,7 @@ import { validateExcelFormula } from '../../utils/formulaValidator';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
+import { saveCrossAppSnapshot } from '../../services/storage/crossAppBridge';
 
 export class ExcelAgent implements IAgent {
   id = 'excel-specialist';
@@ -174,6 +175,18 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
             range: { type: 'string', description: 'Range sel opsional, misal "A1:D20". Jika kosong, menganalisis seluruh data tabel pada worksheet aktif.' },
             focusMetric: { type: 'string', description: 'Nama kolom metrik atau angka yang ingin menjadi fokus utama analisis naratif (misal: "Revenue", "Laba Bersih", "Penjualan").' },
             includeRecommendations: { type: 'boolean', description: 'Apakah menyertakan poin rekomendasi bisnis strategis (default: true).' },
+          },
+        },
+      },
+      {
+        name: 'share_to_cross_app_hub',
+        description: 'Membagikan data tabel dan ringkasan eksekutif dari lembar kerja aktif ke Sam Universal Hub agar dapat langsung diimpor ke Word atau PowerPoint.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Judul snapshot data yang dibagikan (misal: "Rekap Penjualan Q3")' },
+            range: { type: 'string', description: 'Range sel tabel opsional (misal: "A1:E20"). Jika kosong, membaca seluruh data aktif.' },
+            summaryText: { type: 'string', description: 'Catatan ringkasan eksekutif opsional mengenai data ini.' },
           },
         },
       },
@@ -381,6 +394,42 @@ Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas dat
           };
         }
         return { success: false, error: 'Driver Excel tidak mendukung generateDataStory.' };
+      }
+
+      if (toolCall.name === 'share_to_cross_app_hub') {
+        const { title, range, summaryText } = toolCall.arguments || {};
+        const data = driver.readActiveSheetData ? await driver.readActiveSheetData(range) : await driver.readActiveRange();
+        const values: any[][] = data?.values || [];
+
+        if (!values || values.length === 0) {
+          return { success: false, error: 'Tidak ada data pada lembar kerja untuk dibagikan ke Universal Hub.' };
+        }
+
+        const headers = values[0].map((h: any) => String(h ?? ''));
+        const rows = values.length > 1 ? values.slice(1) : [];
+        const resolvedTitle = title || data?.sheetName || 'Data Lembar Kerja Excel';
+
+        let resolvedSummary = summaryText;
+        if (!resolvedSummary) {
+          resolvedSummary = `Tabel "${resolvedTitle}" memuat ${rows.length} baris data dan ${headers.length} kolom (${headers.slice(0, 5).join(', ')}${headers.length > 5 ? '...' : ''}).`;
+        }
+
+        const snapshot = saveCrossAppSnapshot({
+          sourceHost: 'Excel',
+          title: resolvedTitle,
+          artifactType: 'table_data',
+          tableData: {
+            headers,
+            rows,
+            totalRows: rows.length,
+          },
+          summaryText: resolvedSummary,
+        });
+
+        return {
+          success: true,
+          result: `✅ Berhasil membagikan data "${resolvedTitle}" ke Sam Universal Hub (ID: ${snapshot.id}). Data siap diimpor di Microsoft Word atau PowerPoint.`,
+        };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };

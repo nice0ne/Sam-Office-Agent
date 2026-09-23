@@ -2,6 +2,10 @@ import { getOfficeDriver } from '../../services/office';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
+import {
+  getLatestCrossAppSnapshot,
+  listCrossAppSnapshots,
+} from '../../services/storage/crossAppBridge';
 
 export class PPTAgent implements IAgent {
   id = 'ppt-specialist';
@@ -197,6 +201,23 @@ export class PPTAgent implements IAgent {
           },
         },
       },
+      {
+        name: 'import_from_cross_app_hub',
+        description: 'Mengimpor data snapshot dari Sam Universal Hub (tabel Excel, ringkasan Word, PRD) dan secara otomatis mentransformasikannya menjadi rangkaian slide presentasi eksekutif lengkap dengan speaker notes.',
+        parameters: {
+          type: 'object',
+          properties: {
+            snapshotId: { type: 'string', description: 'ID snapshot tertentu (opsional). Jika tidak disertakan, mengambil snapshot terbaru dari aplikasi lain.' },
+            theme: {
+              type: 'string',
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
+              description: 'Tema desain visual presentasi.',
+            },
+            targetSlideCount: { type: 'number', description: 'Target jumlah slide yang dihasilkan (default: 5).' },
+            targetAudience: { type: 'string', enum: ['executive', 'technical', 'team_all_hands'], description: 'Target audiens presentasi.' },
+          },
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -315,6 +336,76 @@ export class PPTAgent implements IAgent {
           output += slideCards.join('\n\n---\n\n');
           return { success: true, result: output.trim() };
         }
+        return { success: false, error: 'Driver PowerPoint tidak mendukung transformDocToDeck.' };
+      }
+
+      if (toolCall.name === 'import_from_cross_app_hub') {
+        const { snapshotId, theme, targetSlideCount, targetAudience } = toolCall.arguments || {};
+        let snapshot = null;
+        if (snapshotId) {
+          const all = listCrossAppSnapshots();
+          snapshot = all.find(s => s.id === snapshotId) || null;
+        } else {
+          snapshot = getLatestCrossAppSnapshot('PowerPoint');
+        }
+
+        if (!snapshot) {
+          return { success: false, error: 'Tidak ditemukan snapshot data di Universal Hub dari aplikasi lain.' };
+        }
+
+        // Format snapshot into document text for doc-to-deck synthesis
+        let docText = `Judul: ${snapshot.title}\nSumber: ${snapshot.sourceHost}\n`;
+        if (snapshot.summaryText) {
+          docText += `Ringkasan Eksekutif:\n${snapshot.summaryText}\n\n`;
+        }
+        if (snapshot.tableData && snapshot.tableData.headers) {
+          docText += `Data Tabel:\n`;
+          docText += snapshot.tableData.headers.join(' | ') + '\n';
+          for (const row of snapshot.tableData.rows.slice(0, 10)) {
+            docText += row.join(' | ') + '\n';
+          }
+          docText += '\n';
+        }
+        if (snapshot.metrics && snapshot.metrics.length > 0) {
+          docText += `Metrik Kunci:\n`;
+          for (const m of snapshot.metrics) {
+            docText += `- ${m.label}: ${m.value}${m.trend ? ` (${m.trend})` : ''}\n`;
+          }
+        }
+
+        if (driver.transformDocToDeck) {
+          const res = await driver.transformDocToDeck({
+            documentText: docText,
+            targetSlideCount: targetSlideCount || 5,
+            theme: theme || 'corporate_blue',
+            presentationTitle: snapshot.title,
+            targetAudience: targetAudience || 'executive',
+          });
+
+          let output = `### 📊 Hasil Transformasi Universal Hub ke Slide Presentasi: ${res.deckTitle}\n`;
+          output += `Sumber: ${snapshot.sourceHost} Hub | Tema: ${res.appliedTheme} | Total Slide: ${res.totalSlidesCreated}\n\n`;
+
+          const slideCards = res.slides.map((slide: any, idx: number) => {
+            const bulletsStr = slide.bullets.map((b: string) => `  - ${b}`).join('\n');
+            const talkingPoints = slide.speakerScript?.keyTalkingPoints
+              ? slide.speakerScript.keyTalkingPoints.map((tp: string) => `    * ${tp}`).join('\n')
+              : '';
+            const metricsStr = slide.metrics && slide.metrics.length > 0
+              ? `\n  - **Metrik:**\n` + slide.metrics.map((m: any) => `    * ${m.label}: ${m.value}${m.trend ? ` (${m.trend})` : ''}`).join('\n')
+              : '';
+
+            return `#### Slide ${idx + 1}: ${slide.title} [${slide.category.toUpperCase()}]\n` +
+              `*Poin Slide:*\n${bulletsStr}${metricsStr}\n\n` +
+              `🎙️ **Naskah Presenter (Speaker Notes)**:\n` +
+              `- **Pembuka (Hook):** "${slide.speakerScript?.hook || ''}"\n` +
+              `- **Poin Elaborasi:**\n${talkingPoints}\n` +
+              `- **Transisi ke Slide Berikutnya:** "${slide.speakerScript?.transition || ''}"`;
+          });
+
+          output += slideCards.join('\n\n---\n\n');
+          return { success: true, result: output.trim() };
+        }
+
         return { success: false, error: 'Driver PowerPoint tidak mendukung transformDocToDeck.' };
       }
 

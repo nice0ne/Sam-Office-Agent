@@ -3,6 +3,11 @@ import { renderChartToBase64Png } from '../../utils/chartRenderer';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
+import {
+  getLatestCrossAppSnapshot,
+  saveCrossAppSnapshot,
+  listCrossAppSnapshots,
+} from '../../services/storage/crossAppBridge';
 
 export class WordAgent implements IAgent {
   id = 'word-specialist';
@@ -213,6 +218,29 @@ PANDUAN ALUR KERJA:
           },
         },
       },
+      {
+        name: 'import_from_cross_app_hub',
+        description: 'Mengimpor data tabel, ringkasan eksekutif, atau metrik dari Sam Universal Hub (misal: data dari Excel atau PowerPoint) langsung ke dalam dokumen Word.',
+        parameters: {
+          type: 'object',
+          properties: {
+            snapshotId: { type: 'string', description: 'ID snapshot tertentu (opsional). Jika tidak disertakan, mengambil snapshot terbaru dari aplikasi lain.' },
+            includeSummary: { type: 'boolean', description: 'Apakah menyertakan narasi ringkasan eksekutif (default: true).' },
+            includeTable: { type: 'boolean', description: 'Apakah menyisipkan tabel data jika tersedia (default: true).' },
+          },
+        },
+      },
+      {
+        name: 'share_to_cross_app_hub',
+        description: 'Membagikan intisari dokumen Word atau PRD aktif ke Sam Universal Hub agar dapat diimpor ke PowerPoint untuk pembuatan slide deck presentasi.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Judul snapshot dokumen yang dibagikan (misal: "PRD Sistem Pembayaran").' },
+            summaryText: { type: 'string', description: 'Ringkasan dokumen yang dibagikan (opsional, jika kosong membaca dari isi dokumen).' },
+          },
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -343,6 +371,63 @@ PANDUAN ALUR KERJA:
           };
         }
         return { success: false, error: 'Driver Word tidak mendukung applyCorporateStyle.' };
+      }
+      if (toolCall.name === 'import_from_cross_app_hub') {
+        const { snapshotId, includeSummary = true, includeTable = true } = toolCall.arguments || {};
+        let snapshot = null;
+        if (snapshotId) {
+          const all = listCrossAppSnapshots();
+          snapshot = all.find(s => s.id === snapshotId) || null;
+        } else {
+          snapshot = getLatestCrossAppSnapshot('Word');
+        }
+
+        if (!snapshot) {
+          return { success: false, error: 'Tidak ditemukan snapshot data di Universal Hub dari aplikasi lain.' };
+        }
+
+        // Insert heading
+        await driver.insertContent('end', `Ringkasan: ${snapshot.title}`, 'h2');
+
+        // Insert summary narrative if present and requested
+        if (includeSummary && snapshot.summaryText) {
+          await driver.insertContent('end', snapshot.summaryText, 'paragraph');
+        }
+
+        // Insert table if tableData is present and requested
+        if (includeTable && snapshot.tableData && snapshot.tableData.headers && snapshot.tableData.rows) {
+          const { headers, rows } = snapshot.tableData;
+          const tableDataFormatted = [headers, ...rows.map(r => r.map(c => String(c ?? '')))];
+          await driver.insertTable(tableDataFormatted.length, headers.length, tableDataFormatted);
+        }
+
+        return {
+          success: true,
+          result: `✅ Berhasil mengimpor data "${snapshot.title}" dari ${snapshot.sourceHost} via Universal Hub ke dalam dokumen Word.`,
+        };
+      }
+      if (toolCall.name === 'share_to_cross_app_hub') {
+        const { title, summaryText } = toolCall.arguments || {};
+        let resolvedSummary = summaryText || _context.documentSummary;
+        if (!resolvedSummary && driver.getWordOutline) {
+          resolvedSummary = await driver.getWordOutline();
+        }
+        if (!resolvedSummary) {
+          resolvedSummary = 'Dokumen Word tanpa ringkasan.';
+        }
+
+        const resolvedTitle = title || 'Dokumen Word';
+        const snapshot = saveCrossAppSnapshot({
+          sourceHost: 'Word',
+          title: resolvedTitle,
+          artifactType: 'executive_summary',
+          summaryText: resolvedSummary,
+        });
+
+        return {
+          success: true,
+          result: `✅ Berhasil membagikan dokumen "${resolvedTitle}" ke Sam Universal Hub (ID: ${snapshot.id}). Data siap diimpor di PowerPoint atau Excel.`,
+        };
       }
       return { success: false, error: 'Tool tidak ditemukan.' };
     } catch (e: any) {
