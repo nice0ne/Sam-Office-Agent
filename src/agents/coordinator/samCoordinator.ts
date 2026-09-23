@@ -3,6 +3,7 @@ import { ExcelAgent } from '../excel/excelAgent';
 import { PPTAgent } from '../powerpoint/pptAgent';
 import { AgentContext, IAgent } from '../types';
 import { WordAgent } from '../word/wordAgent';
+import { getSoulConfig } from '../../services/storage/soulStorage';
 
 export class SamCoordinator {
   private excelAgent = new ExcelAgent();
@@ -22,9 +23,24 @@ export class SamCoordinator {
     }
   }
 
-  buildSystemPrompt(host: HostType, context: AgentContext): string {
+  buildSystemPrompt(context: AgentContext): string;
+  buildSystemPrompt(host: HostType, context?: AgentContext): string;
+  buildSystemPrompt(hostOrContext: HostType | AgentContext, maybeContext?: AgentContext): string {
+    let host: HostType;
+    let context: AgentContext;
+
+    if (typeof hostOrContext === 'string') {
+      host = hostOrContext;
+      context = maybeContext || { host };
+    } else {
+      context = hostOrContext;
+      host = context.host || 'Excel';
+    }
+
     const specialist = this.getSpecialist(host);
-    return `Anda adalah Sam, asisten AI produktivitas kantor yang ramah, profesional, dan cekatan.
+    const soul = getSoulConfig();
+
+    let prompt = `Anda adalah Sam, asisten AI produktivitas kantor yang ramah, profesional, dan cekatan.
 ${specialist.getSystemPrompt(context)}
 
 Aturan Penting:
@@ -40,6 +56,21 @@ Aturan Penting:
    - Anda adalah asisten yang cerdas dan terus berkembang: JANGAN PERNAH menolak permintaan pengguna hanya karena tidak ada tool bawaan, buatkan script Office.js dinamisnya!
 5. Selalu utamakan bahasa Indonesia yang baik, terstruktur, dan profesional.
 6. PENCARIAN DATA WEB TERKINI (WEB SEARCH): Jika pengguna meminta data real-time, kurs mata uang, tren industri, fakta terbaru, atau informasi yang memerlukan data eksternal internet, gunakan tool web_search terlebih dahulu. Setelah mendapatkan data, langsung eksekusi ke dokumen (tulis sel, buat tabel, atau buat slide) dan sertakan sumber referensi di akhir pesan chat.
-7. DIAGRAM ALUR PROSES (FLOWCHART): Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word atau PowerPoint, gunakan tool insert_process_flowchart untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen/slide.`;
+7. DIAGRAM ALUR PROSES (FLOWCHART): Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word atau PowerPoint, gunakan tool insert_process_flowchart untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen/slide.
+8. CORPORATE DIRECTIVES & SELF-LEARNING (SOUL.md): Jika pengguna memberikan arahan gaya baru, koreksi istilah, atau aturan penulisan spesifik, gunakan tool learn_corporate_directive untuk menyimpannya ke memori korporat.`;
+
+    if (soul.enabled) {
+      prompt += `\n\n=== CORPORATE BRAND VOICE & SOUL DIRECTIVES (SOUL.md) ===
+Nama Entitas: ${soul.corporateName}
+Preset Karakter: ${soul.brandVoicePreset}
+
+${soul.rawSoulMarkdown}
+
+${soul.learnedDirectives.length > 0 ? `Aturan yang Dipelajari Secara Mandiri (Self-Learned Directives):\n${soul.learnedDirectives.map(d => `- [${d.category.toUpperCase()}]: ${d.rule}`).join('\n')}\n` : ''}
+PANDUAN KEPATUHAN KORPORAT: Anda WAJIB mematuhi seluruh direktif SOUL di atas dalam setiap penyusunan naskah, tabel angka, dan slide presentasi.
+=== END CORPORATE DIRECTIVES ===\n`;
+    }
+
+    return prompt;
   }
 }

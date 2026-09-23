@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SamCoordinator } from '../samCoordinator';
+import { saveSoulConfig, addLearnedDirective, clearSoulConfig } from '../../../services/storage/soulStorage';
 
 describe('SamCoordinator', () => {
   it('selects correct specialist agent based on host context', () => {
@@ -32,5 +33,26 @@ describe('SamCoordinator', () => {
     const pptPrompt = coordinator.buildSystemPrompt('PowerPoint', { host: 'PowerPoint' });
     expect(pptPrompt).toContain('Sam');
     expect(pptPrompt).toContain('PowerPoint');
+  });
+
+  it('dynamically injects active SOUL.md directives and learned rules into system prompt', () => {
+    clearSoulConfig();
+    const coordinator = new SamCoordinator();
+    saveSoulConfig({
+      enabled: true,
+      corporateName: 'PT Telko Digital Nusantara',
+      brandVoicePreset: 'formal_executive',
+    });
+    addLearnedDirective('Format seluruh angka dengan pemisah titik', 'formatting');
+
+    const prompt = coordinator.buildSystemPrompt({ host: 'Word' });
+    expect(prompt).toContain('CORPORATE BRAND VOICE & SOUL DIRECTIVES');
+    expect(prompt).toContain('PT Telko Digital Nusantara');
+    expect(prompt).toContain('Format seluruh angka dengan pemisah titik');
+
+    // When disabled, SOUL directives should be excluded
+    saveSoulConfig({ enabled: false });
+    const disabledPrompt = coordinator.buildSystemPrompt({ host: 'Word' });
+    expect(disabledPrompt).not.toContain('CORPORATE BRAND VOICE & SOUL DIRECTIVES');
   });
 });
