@@ -61,6 +61,7 @@ export interface IDocumentDriver {
   createPresentationDeck?(slides: Array<{ title: string; bullets: string[]; notes?: string; layout?: string }>): Promise<{ createdCount: number }>;
   generateThemedDeck?(options: ThemedDeckOptions): Promise<{ success: boolean; createdCount: number }>;
   transformDocToDeck?(options?: DocToDeckOptions): Promise<DocToDeckResult>;
+  insertProcessFlowchart?(options: InsertFlowchartOptions): Promise<DiagramResult>;
 }
 
 export interface CleanDataOptions {
@@ -231,5 +232,52 @@ export interface DocToDeckResult {
   totalSlidesCreated: number;
   slides: DocToDeckSlide[];
   summaryMessage: string;
+}
+
+export type FlowchartNodeType = 'start' | 'end' | 'process' | 'decision' | 'document' | 'subroutine';
+
+export interface FlowchartNode {
+  id: string;
+  label: string;
+  type: FlowchartNodeType;
+  subText?: string;
+  color?: string;
+}
+
+export interface FlowchartEdge {
+  from: string;
+  to: string;
+  label?: string;
+  style?: 'solid' | 'dashed';
+}
+
+export interface FlowchartDefinition {
+  title?: string;
+  direction?: 'TD' | 'LR';
+  theme?: 'corporate_navy' | 'emerald_executive' | 'modern_dark' | 'amber_warm';
+  nodes: FlowchartNode[];
+  edges: FlowchartEdge[];
+}
+
+export interface FlowchartOptions {
+  title?: string;
+  theme?: 'corporate_navy' | 'emerald_executive' | 'modern_dark' | 'amber_warm';
+  direction?: 'TD' | 'LR';
+  scale?: number;
+}
+
+export interface InsertFlowchartOptions extends FlowchartOptions {
+  textOrSteps?: string;
+  definition?: FlowchartDefinition;
+  caption?: string;
+}
+
+export interface DiagramResult {
+  title: string;
+  nodeCount: number;
+  edgeCount: number;
+  appliedTheme: string;
+  base64Png: string;
+  inserted: boolean;
 }
 

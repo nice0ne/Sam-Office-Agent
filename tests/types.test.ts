@@ -24,6 +24,10 @@ import {
   DocToDeckSlide,
   DocToDeckOptions,
   DocToDeckResult,
+  FlowchartNode,
+  FlowchartEdge,
+  FlowchartDefinition,
+  DiagramResult,
 } from '../src/services/office/types';
 
 describe('HostType & Guards', () => {
@@ -279,6 +283,46 @@ describe('DocToDeck Types', () => {
     expect(result.slides[0].category).toBe('context');
     expect(result.slides[0].speakerScript.hook).toBeDefined();
     expect(result.appliedTheme).toBe('corporate_blue');
+  });
+});
+
+describe('Diagram & Flowchart Type Contracts', () => {
+  it('validates FlowchartDefinition and DiagramResult structure', () => {
+    const node: FlowchartNode = {
+      id: 'step-1',
+      label: 'Pengajuan Cuti',
+      type: 'start',
+      subText: 'Karyawan mengisi form',
+    };
+
+    const edge: FlowchartEdge = {
+      from: 'step-1',
+      to: 'step-2',
+      label: 'Kirim',
+      style: 'solid',
+    };
+
+    const def: FlowchartDefinition = {
+      title: 'SOP Cuti Karyawan',
+      direction: 'TD',
+      theme: 'corporate_navy',
+      nodes: [node],
+      edges: [edge],
+    };
+
+    const result: DiagramResult = {
+      title: def.title!,
+      nodeCount: def.nodes.length,
+      edgeCount: def.edges.length,
+      appliedTheme: def.theme!,
+      base64Png: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      inserted: true,
+    };
+
+    expect(result.nodeCount).toBe(1);
+    expect(result.edgeCount).toBe(1);
+    expect(result.appliedTheme).toBe('corporate_navy');
+    expect(result.inserted).toBe(true);
   });
 });
 
