@@ -60,6 +60,7 @@ export interface IDocumentDriver {
   createSlide?(title: string, bullets: string[], notes?: string, layout?: string): Promise<{ slideNumber: number }>;
   createPresentationDeck?(slides: Array<{ title: string; bullets: string[]; notes?: string; layout?: string }>): Promise<{ createdCount: number }>;
   generateThemedDeck?(options: ThemedDeckOptions): Promise<{ success: boolean; createdCount: number }>;
+  transformDocToDeck?(options?: DocToDeckOptions): Promise<DocToDeckResult>;
 }
 
 export interface CleanDataOptions {
@@ -202,5 +203,33 @@ export interface PendingActionProposal {
   affectedCellsCount: number;
   targetRange?: string;
   payload: any;
+}
+
+export interface DocToDeckSlide {
+  title: string;
+  category: 'cover' | 'context' | 'strategy' | 'metrics' | 'roadmap' | 'general';
+  bullets: string[];
+  metrics?: Array<{ label: string; value: string; trend?: string }>;
+  speakerScript: {
+    hook: string;
+    keyTalkingPoints: string[];
+    transition: string;
+  };
+}
+
+export interface DocToDeckOptions {
+  documentText?: string;
+  targetSlideCount?: number;
+  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  presentationTitle?: string;
+  targetAudience?: 'executive' | 'technical' | 'team_all_hands';
+}
+
+export interface DocToDeckResult {
+  deckTitle: string;
+  appliedTheme: string;
+  totalSlidesCreated: number;
+  slides: DocToDeckSlide[];
+  summaryMessage: string;
 }
 

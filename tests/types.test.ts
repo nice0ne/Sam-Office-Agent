@@ -21,6 +21,9 @@ import {
   ComplianceClause,
   ComplianceReviewResult,
   CorporateStyleResult,
+  DocToDeckSlide,
+  DocToDeckOptions,
+  DocToDeckResult,
 } from '../src/services/office/types';
 
 describe('HostType & Guards', () => {
@@ -247,4 +250,36 @@ describe('Word Compliance & Corporate Style Types', () => {
     expect(res.headingsCount).toBe(3);
   });
 });
+
+describe('DocToDeck Types', () => {
+  it('validates DocToDeckSlide and DocToDeckResult contracts', () => {
+    const slide: DocToDeckSlide = {
+      title: 'Tinjauan Strategis',
+      category: 'context',
+      bullets: ['Tantangan integrasi sistem', 'Peningkatan kebutuhan efisiensi'],
+      speakerScript: {
+        hook: 'Bapak/Ibu sekalian, mari kita mulai dengan memahami latar belakang urgensi proyek ini.',
+        keyTalkingPoints: ['Sistem saat ini menghadapi tantangan integrasi.', 'Efisiensi operasional perlu ditingkatkan segera.'],
+        transition: 'Selanjutnya, mari kita telusuri pilar solusi yang diusulkan.',
+      },
+    };
+    const options: DocToDeckOptions = {
+      documentText: 'Teks dokumen contoh',
+      theme: 'corporate_blue',
+      targetSlideCount: 5,
+    };
+    const result: DocToDeckResult = {
+      deckTitle: 'Presentasi Strategis',
+      appliedTheme: options.theme || 'corporate_blue',
+      totalSlidesCreated: 1,
+      slides: [slide],
+      summaryMessage: 'Berhasil membuat 1 slide.',
+    };
+    expect(result.deckTitle).toBe('Presentasi Strategis');
+    expect(result.slides[0].category).toBe('context');
+    expect(result.slides[0].speakerScript.hook).toBeDefined();
+    expect(result.appliedTheme).toBe('corporate_blue');
+  });
+});
+
 
