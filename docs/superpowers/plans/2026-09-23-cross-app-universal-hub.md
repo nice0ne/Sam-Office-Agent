@@ -31,7 +31,7 @@
   - Types: `CrossAppArtifactType`, `CrossAppTableData`, `CrossAppMetric`, `CrossAppSnapshot`.
   - Functions: `saveCrossAppSnapshot`, `getLatestCrossAppSnapshot`, `listCrossAppSnapshots`, `dismissCrossAppSnapshot`, `isCrossAppSnapshotDismissed`, `clearCrossAppSnapshots`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `tests/crossAppBridge.test.ts`:
 ```typescript
@@ -91,21 +91,21 @@ describe('CrossAppBridge Storage Engine', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/crossAppBridge.test.ts`
 Expected: FAIL with module not found.
 
-- [ ] **Step 3: Implement `src/types/index.ts` and `src/services/storage/crossAppBridge.ts`**
+- [x] **Step 3: Implement `src/types/index.ts` and `src/services/storage/crossAppBridge.ts`**
 
 Export interfaces and implement localStorage serialization with TTL filter (24 hours) and dismissal tracking.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/crossAppBridge.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/types/index.ts src/services/storage/crossAppBridge.ts tests/crossAppBridge.test.ts
