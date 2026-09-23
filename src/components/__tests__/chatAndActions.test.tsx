@@ -14,6 +14,39 @@ function stripComments(html: string): string {
   return html.replace(/<!--.*?-->/g, '');
 }
 
+interface CustomMatchers<R = unknown> {
+  toBeInTheDocument(): R;
+}
+
+declare module 'vitest' {
+  interface Assertion<T = any> extends CustomMatchers<T> {}
+  interface AsymmetricMatchersContaining extends CustomMatchers {}
+}
+
+let lastRenderedHtml = '';
+function render(ui: React.ReactElement) {
+  lastRenderedHtml = renderToString(ui);
+  return { html: lastRenderedHtml };
+}
+
+const screen = {
+  getByText: (pattern: RegExp | string) => {
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    const match = regex.test(lastRenderedHtml);
+    return match ? { inDocument: true } : null;
+  },
+};
+
+expect.extend({
+  toBeInTheDocument(received: any) {
+    const pass = Boolean(received && received.inDocument === true);
+    return {
+      pass,
+      message: () => `expected element ${pass ? 'not ' : ''}to be in document`,
+    };
+  },
+});
+
 // Helper to recursively find an element in a ReactElement tree (handles nested arrays from .map)
 function findElement(node: any, predicate: (elem: any) => boolean): any {
   if (!node) return null;
@@ -947,7 +980,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(4);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
@@ -960,6 +993,28 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Buat Deck 3 Slide');
     expect(html).toContain('Ringkas Seluruh Slide');
     expect(html).toContain('Catatan Pemateri');
+    expect(html).toContain('Dokumen ke Slide');
+  });
+
+  it('renders ppt_doc_to_deck preset in PowerPoint host mode', () => {
+    const onSelectPreset = vi.fn();
+    const harness = createHookHarness(QuickActionPresets, {
+      host: 'PowerPoint',
+      onSelectPreset,
+      disabled: false,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const docToDeckBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Dokumen ke Slide'));
+    expect(docToDeckBtn).toBeDefined();
+    docToDeckBtn.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Ubah teks/dokumen laporan ini menjadi 5 slide presentasi eksekutif terstruktur lengkap dengan naskah pembicara (speaker notes).'
+    );
+
+    render(<QuickActionPresets host="PowerPoint" onSelectPreset={vi.fn()} />);
+    expect(screen.getByText(/Dokumen ke Slide/i)).toBeInTheDocument();
   });
 
   it('disables all preset buttons when disabled prop is true', () => {

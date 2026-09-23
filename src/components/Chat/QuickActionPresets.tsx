@@ -84,6 +84,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🎤 Catatan Pemateri',
       prompt: 'Buatkan naskah catatan pemateri (speaker notes) yang elegan dan siap pakai untuk materi presentasi ini.',
     },
+    {
+      id: 'ppt_doc_to_deck',
+      label: '📊 Dokumen ke Slide (Doc-to-Deck)',
+      prompt: 'Ubah teks/dokumen laporan ini menjadi 5 slide presentasi eksekutif terstruktur lengkap dengan naskah pembicara (speaker notes).',
+    },
   ],
   BrowserDev: [
     {
