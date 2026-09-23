@@ -1,12 +1,18 @@
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ActionCard } from '../Actions/ActionCard';
 import { MessageBubble } from '../Chat/MessageBubble';
 import { InputBar } from '../Chat/InputBar';
 import { ChatContainer } from '../Chat/ChatContainer';
 import { QuickActionPresets } from '../Chat/QuickActionPresets';
 import { ActionConfirmationCard } from '../Chat/ActionConfirmationCard';
+import { CrossAppSnapshotCard } from '../Chat/CrossAppSnapshotCard';
+import {
+  saveCrossAppSnapshot,
+  clearCrossAppSnapshots,
+  isCrossAppSnapshotDismissed,
+} from '../../services/storage/crossAppBridge';
 import { ToolCall, ChatMessage, PendingActionProposal } from '../../types';
 
 // Helper to strip React SSR comments from html output
@@ -25,7 +31,7 @@ declare module 'vitest' {
 
 let lastRenderedHtml = '';
 function render(ui: React.ReactElement) {
-  lastRenderedHtml = renderToString(ui);
+  lastRenderedHtml = stripComments(renderToString(ui));
   return { html: lastRenderedHtml };
 }
 
@@ -867,7 +873,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(5);
+    expect(buttons.length).toBe(6);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -881,6 +887,7 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Bersihkan Data');
     expect(html).toContain('Rekap &amp; Chart');
     expect(html).toContain('Format &amp; Color Scale');
+    expect(html).toContain('Bagikan ke Hub');
   });
 
   it('renders new Excel presets for Audit Formula and Analisis Tren', () => {
@@ -895,9 +902,11 @@ describe('QuickActionPresets Component', () => {
     const buttons = findAllElements(vdom, el => el.type === 'button');
     const auditBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Audit Formula & Error'));
     const trendBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Analisis Tren'));
+    const hubBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bagikan ke Hub'));
 
     expect(auditBtn).toBeDefined();
     expect(trendBtn).toBeDefined();
+    expect(hubBtn).toBeDefined();
 
     auditBtn.props.onClick();
     expect(onSelect).toHaveBeenCalledWith(
@@ -909,9 +918,15 @@ describe('QuickActionPresets Component', () => {
       'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.'
     );
 
+    hubBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Kirim ringkasan data dan tabel aktif ini ke Universal Hub agar bisa langsung dipakai di Word atau PowerPoint.'
+    );
+
     const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelect} />);
     expect(html).toContain('Audit Formula &amp; Error');
     expect(html).toContain('Buat Analisis Tren');
+    expect(html).toContain('Bagikan ke Hub');
   });
 
   it('renders QuickActionPresets for Word with correct labels and prompts', () => {
@@ -924,7 +939,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(5);
+    expect(buttons.length).toBe(6);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -937,9 +952,10 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Notulen Rapat (MoM)');
     expect(html).toContain('Buat SOP');
     expect(html).toContain('Poles Bahasa &amp; EYD');
+    expect(html).toContain('Impor Data dari Excel Hub');
   });
 
-  it('renders new Word presets for Review Kontrak and Format Brand Korporat', () => {
+  it('renders new Word presets for Review Kontrak, Format Brand Korporat, and Hub Import', () => {
     const onSelect = vi.fn();
     const harness = createHookHarness(QuickActionPresets, {
       host: 'Word',
@@ -951,9 +967,11 @@ describe('QuickActionPresets Component', () => {
     const buttons = findAllElements(vdom, el => el.type === 'button');
     const contractBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Review Kontrak & Risiko'));
     const corporateBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Format Brand Korporat'));
+    const importHubBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Impor Data dari Excel Hub'));
 
     expect(contractBtn).toBeDefined();
     expect(corporateBtn).toBeDefined();
+    expect(importHubBtn).toBeDefined();
 
     contractBtn.props.onClick();
     expect(onSelect).toHaveBeenCalledWith(
@@ -965,9 +983,15 @@ describe('QuickActionPresets Component', () => {
       'Terapkan standarisasi gaya dan format korporat profesional (Corporate Navy) pada seluruh dokumen ini: tata hierarki heading, font, dan spasi yang rapi.'
     );
 
+    importHubBtn.props.onClick();
+    expect(onSelect).toHaveBeenCalledWith(
+      'Ambil snapshot data terbaru dari Excel di Universal Hub, lalu buatkan tabel dan draf naskah laporannya di dokumen ini.'
+    );
+
     const html = renderToString(<QuickActionPresets host="Word" onSelectPreset={onSelect} />);
     expect(html).toContain('Review Kontrak &amp; Risiko');
     expect(html).toContain('Format Brand Korporat');
+    expect(html).toContain('Impor Data dari Excel Hub');
   });
 
   it('renders QuickActionPresets for PowerPoint with correct labels and prompts', () => {
@@ -980,7 +1004,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(4);
+    expect(buttons.length).toBe(5);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
@@ -989,11 +1013,19 @@ describe('QuickActionPresets Component', () => {
       'Buatkan 3 slide presentasi terstruktur: Slide 1 Judul Cover, Slide 2 Poin Materi Utama, Slide 3 Key Metrics Capaian.'
     );
 
+    const pptHubBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Slide dari Hub'));
+    expect(pptHubBtn).toBeDefined();
+    pptHubBtn.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Ambil data atau ringkasan terbaru dari Universal Hub dan buatkan 5 slide presentasi eksekutif lengkap dengan speaker notes.'
+    );
+
     const html = renderToString(<QuickActionPresets host="PowerPoint" onSelectPreset={onSelectPreset} />);
     expect(html).toContain('Buat Deck 3 Slide');
     expect(html).toContain('Ringkas Seluruh Slide');
     expect(html).toContain('Catatan Pemateri');
     expect(html).toContain('Dokumen ke Slide');
+    expect(html).toContain('Buat Slide dari Hub');
   });
 
   it('renders ppt_doc_to_deck preset in PowerPoint host mode', () => {
@@ -1249,6 +1281,90 @@ describe('MessageBubble with pendingAction proposal', () => {
 
     actionCard.props.onCancel('prop-abc');
     expect(onCancel).toHaveBeenCalledWith('prop-abc');
+  });
+});
+
+describe('CrossAppSnapshotCard Component', () => {
+  beforeEach(() => {
+    clearCrossAppSnapshots();
+  });
+
+  it('renders CrossAppSnapshotCard when fresh snapshot from another host exists', () => {
+    saveCrossAppSnapshot({
+      sourceHost: 'Excel',
+      title: 'Rekap Penjualan Q3',
+      artifactType: 'table_data',
+      summaryText: 'Tabel 15 baris',
+    });
+
+    render(
+      <ChatContainer
+        host="Word"
+        messages={[]}
+        onSendMessage={vi.fn()}
+        onApplyToolCall={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Rekap Penjualan Q3/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ditemukan data dari Excel/i)).toBeInTheDocument();
+  });
+
+  it('triggers onSendMessage with appropriate prompt when action button is clicked', () => {
+    saveCrossAppSnapshot({
+      sourceHost: 'Excel',
+      title: 'Rekap Penjualan Q3',
+      artifactType: 'table_data',
+      summaryText: 'Tabel 15 baris',
+    });
+
+    const onSendMessage = vi.fn();
+    const harness = createHookHarness(CrossAppSnapshotCard, {
+      host: 'Word',
+      onSendMessage,
+    });
+    const vdom = harness.render();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const actionBtn = buttons.find(b => {
+      const txt = typeof b.props.children === 'string' ? b.props.children : JSON.stringify(b.props.children);
+      return txt.includes('Buat Laporan & Sisipkan Tabel');
+    });
+    expect(actionBtn).toBeDefined();
+
+    actionBtn.props.onClick();
+    expect(onSendMessage).toHaveBeenCalledTimes(1);
+    expect(onSendMessage).toHaveBeenCalledWith(
+      'Ambil snapshot data terbaru dari Excel di Universal Hub, lalu buatkan tabel dan draf naskah laporannya di dokumen ini.'
+    );
+  });
+
+  it('hides card and records dismissal when dismiss button is clicked', () => {
+    const snap = saveCrossAppSnapshot({
+      sourceHost: 'Excel',
+      title: 'Rekap Penjualan Q3',
+      artifactType: 'table_data',
+      summaryText: 'Tabel 15 baris',
+    });
+
+    const harness = createHookHarness(CrossAppSnapshotCard, {
+      host: 'Word',
+      onSendMessage: vi.fn(),
+    });
+    let vdom = harness.render();
+    expect(vdom).not.toBeNull();
+
+    const buttons = findAllElements(vdom, el => el.type === 'button');
+    const dismissBtn = buttons.find(
+      b => b.props['aria-label'] === 'Abaikan snapshot' || b.props.children === '✕'
+    );
+    expect(dismissBtn).toBeDefined();
+
+    dismissBtn.props.onClick();
+
+    vdom = harness.render();
+    expect(vdom).toBeNull();
+    expect(isCrossAppSnapshotDismissed(snap.id)).toBe(true);
   });
 });
 

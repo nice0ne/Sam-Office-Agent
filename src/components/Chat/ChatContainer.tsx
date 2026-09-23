@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
-import { ChatMessage, ToolCall } from '../../types';
+import { ChatMessage, ToolCall, HostType } from '../../types';
 import { MessageBubble } from './MessageBubble';
+import { CrossAppSnapshotCard } from './CrossAppSnapshotCard';
 
 export interface ChatContainerProps {
   messages: ChatMessage[];
@@ -8,6 +9,8 @@ export interface ChatContainerProps {
   isExecuting?: boolean;
   onConfirmAction?: (proposalId: string) => void;
   onCancelAction?: (proposalId: string) => void;
+  host?: HostType;
+  onSendMessage?: (prompt: string) => void;
 }
 
 export const ChatContainer: React.FC<ChatContainerProps> = ({
@@ -16,6 +19,8 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   isExecuting,
   onConfirmAction,
   onCancelAction,
+  host,
+  onSendMessage,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -25,6 +30,12 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2 select-text">
+      {host && (
+        <CrossAppSnapshotCard
+          host={host}
+          onSendMessage={onSendMessage}
+        />
+      )}
       {messages.map(m => (
         <MessageBubble
           key={m.id}

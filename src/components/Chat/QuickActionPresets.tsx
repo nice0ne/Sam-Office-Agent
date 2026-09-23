@@ -40,6 +40,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📈 Buat Analisis Tren',
       prompt: 'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.',
     },
+    {
+      id: 'excel_share_hub',
+      label: '📤 Bagikan ke Hub (Word/PPT)',
+      prompt: 'Kirim ringkasan data dan tabel aktif ini ke Universal Hub agar bisa langsung dipakai di Word atau PowerPoint.',
+    },
   ],
   Word: [
     {
@@ -67,6 +72,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🎨 Format Brand Korporat',
       prompt: 'Terapkan standarisasi gaya dan format korporat profesional (Corporate Navy) pada seluruh dokumen ini: tata hierarki heading, font, dan spasi yang rapi.',
     },
+    {
+      id: 'word_import_hub',
+      label: '📥 Impor Data dari Excel Hub',
+      prompt: 'Ambil snapshot data terbaru dari Excel di Universal Hub, lalu buatkan tabel dan draf naskah laporannya di dokumen ini.',
+    },
   ],
   PowerPoint: [
     {
@@ -88,6 +98,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'ppt_doc_to_deck',
       label: '📊 Dokumen ke Slide (Doc-to-Deck)',
       prompt: 'Ubah teks/dokumen laporan ini menjadi 5 slide presentasi eksekutif terstruktur lengkap dengan naskah pembicara (speaker notes).',
+    },
+    {
+      id: 'ppt_import_hub',
+      label: '📥 Buat Slide dari Hub (Excel/Word)',
+      prompt: 'Ambil data atau ringkasan terbaru dari Universal Hub dan buatkan 5 slide presentasi eksekutif lengkap dengan speaker notes.',
     },
   ],
   BrowserDev: [
@@ -115,6 +130,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'excel_data_story',
       label: '📈 Buat Analisis Tren',
       prompt: 'Analisis data pada tabel aktif ini: buatkan ringkasan eksekutif, tren pertumbuhan, dan insight temuan utama.',
+    },
+    {
+      id: 'dev_share_hub',
+      label: '📤 Bagikan ke Hub (Word/PPT)',
+      prompt: 'Kirim ringkasan data dan tabel aktif ini ke Universal Hub agar bisa langsung dipakai di Word atau PowerPoint.',
     },
   ],
 };
