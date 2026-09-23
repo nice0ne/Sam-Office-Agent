@@ -1,7 +1,6 @@
 import {
   CleanDataOptions,
   CleanDataResult,
-  ComplianceClause,
   ComplianceReviewOptions,
   ComplianceReviewResult,
   ConditionalFormattingOptions,

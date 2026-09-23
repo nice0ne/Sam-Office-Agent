@@ -235,7 +235,7 @@ export class PPTAgent implements IAgent {
         if (driver.readSlideData) {
           const res = await driver.readSlideData(slideNumber, allSlides ?? (slideNumber === undefined));
           const slideLines = res.slides
-            .map((s) => {
+            .map((s: any) => {
               let line = `[Slide #${s.slideIndex}]: "${s.title}"\n${s.textContent}`;
               if (s.notes) line += `\nSpeaker Notes: ${s.notes}`;
               return line;
