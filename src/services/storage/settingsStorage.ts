@@ -127,3 +127,40 @@ export function setExecutionMode(mode: ExecutionMode): void {
   settings.executionMode = mode;
   saveSettings(settings);
 }
+
+export interface SearchSettings {
+  searchProvider: 'duckduckgo' | 'tavily';
+  tavilyApiKey?: string;
+}
+
+const SEARCH_STORAGE_KEY = 'sam_office_search_settings_v1';
+
+export const DEFAULT_SEARCH_SETTINGS: SearchSettings = {
+  searchProvider: 'duckduckgo',
+  tavilyApiKey: '',
+};
+
+export function getSearchSettings(): SearchSettings {
+  try {
+    const raw = localStorage.getItem(SEARCH_STORAGE_KEY);
+    if (!raw) {
+      return { ...DEFAULT_SEARCH_SETTINGS };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      searchProvider: parsed.searchProvider || 'duckduckgo',
+      tavilyApiKey: parsed.tavilyApiKey !== undefined ? parsed.tavilyApiKey : '',
+    };
+  } catch {
+    return { ...DEFAULT_SEARCH_SETTINGS };
+  }
+}
+
+export function setSearchSettings(settings: SearchSettings): void {
+  try {
+    localStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Gagal menyimpan search settings ke localStorage:', e);
+  }
+}
+
