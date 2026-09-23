@@ -45,6 +45,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📤 Bagikan ke Hub (Word/PPT)',
       prompt: 'Kirim ringkasan data dan tabel aktif ini ke Universal Hub agar bisa langsung dipakai di Word atau PowerPoint.',
     },
+    {
+      id: 'excel_web_search',
+      label: '🌐 Riset Web & Buat Tabel',
+      prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
+    },
   ],
   Word: [
     {
@@ -77,6 +82,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📥 Impor Data dari Excel Hub',
       prompt: 'Ambil snapshot data terbaru dari Excel di Universal Hub, lalu buatkan tabel dan draf naskah laporannya di dokumen ini.',
     },
+    {
+      id: 'word_web_search',
+      label: '🌐 Riset Web & Tulis Laporan',
+      prompt: 'Cari tren dan perkembangan industri terkini di internet, lalu buatkan naskah laporan eksekutif lengkap dengan tabel dan kesimpulannya.',
+    },
   ],
   PowerPoint: [
     {
@@ -103,6 +113,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'ppt_import_hub',
       label: '📥 Buat Slide dari Hub (Excel/Word)',
       prompt: 'Ambil data atau ringkasan terbaru dari Universal Hub dan buatkan 5 slide presentasi eksekutif lengkap dengan speaker notes.',
+    },
+    {
+      id: 'ppt_web_search',
+      label: '🌐 Riset Data & Buat Slide',
+      prompt: 'Cari data statistik dan fakta terkini di internet, lalu ubah menjadi 5 slide presentasi eksekutif lengkap dengan naskah pembicara.',
     },
   ],
   BrowserDev: [
@@ -135,6 +150,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       id: 'dev_share_hub',
       label: '📤 Bagikan ke Hub (Word/PPT)',
       prompt: 'Kirim ringkasan data dan tabel aktif ini ke Universal Hub agar bisa langsung dipakai di Word atau PowerPoint.',
+    },
+    {
+      id: 'dev_web_search',
+      label: '🌐 Riset Web & Buat Tabel',
+      prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
     },
   ],
 };

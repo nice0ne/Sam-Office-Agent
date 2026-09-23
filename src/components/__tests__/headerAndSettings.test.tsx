@@ -15,6 +15,46 @@ function stripComments(html: string): string {
   return html.replace(/<!--.*?-->/g, '');
 }
 
+interface CustomMatchers<R = unknown> {
+  toBeInTheDocument(): R;
+}
+
+declare module 'vitest' {
+  interface Assertion<T = any> extends CustomMatchers<T> {}
+  interface AsymmetricMatchersContaining extends CustomMatchers {}
+}
+
+let lastRenderedHtml = '';
+function render(ui: React.ReactElement) {
+  lastRenderedHtml = stripComments(renderToString(ui));
+  return {
+    html: lastRenderedHtml,
+    rerender: (newUi: React.ReactElement) => {
+      lastRenderedHtml = stripComments(renderToString(newUi));
+      return { html: lastRenderedHtml };
+    },
+  };
+}
+
+const screen = {
+  getByText: (pattern: RegExp | string) => {
+    const decoded = lastRenderedHtml.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    const match = regex.test(decoded) || regex.test(lastRenderedHtml);
+    return match ? { inDocument: true } : null;
+  },
+};
+
+expect.extend({
+  toBeInTheDocument(received: any) {
+    const pass = Boolean(received && received.inDocument === true);
+    return {
+      pass,
+      message: () => `expected element ${pass ? 'not ' : ''}to be in document`,
+    };
+  },
+});
+
 // Helper to simulate component render with React hooks in node environment
 function createHookHarness<P>(Component: React.FC<P>, props: P) {
   const states: any[] = [];
@@ -520,5 +560,11 @@ describe('SettingsModal Component', () => {
     expect(html).toContain('Groq');
     expect(html).toContain('DeepSeek');
     expect(html).toContain('LM Studio');
+  });
+
+  it('renders web search provider settings in SettingsModal', () => {
+    render(<SettingsModal isOpen={true} onClose={vi.fn()} onSaved={vi.fn()} />);
+    expect(screen.getByText(/Pencarian Web/i)).toBeInTheDocument();
+    expect(screen.getByText(/DuckDuckGo/i)).toBeInTheDocument();
   });
 });

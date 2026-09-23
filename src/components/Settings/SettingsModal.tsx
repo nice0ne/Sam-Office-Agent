@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { ProviderConfig, ProviderId } from '../../types';
-import { getSettings, saveSettings, setActiveProvider } from '../../services/storage/settingsStorage';
+import {
+  getSettings,
+  saveSettings,
+  setActiveProvider,
+  getSearchSettings,
+  setSearchSettings,
+  SearchSettings,
+} from '../../services/storage/settingsStorage';
 import { testProviderConnection } from '../../services/llm/factory';
 import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from '../../utils/theme';
-import { X, CheckCircle2, AlertCircle, Loader2, Sparkles, ShieldCheck, Sun, Moon, Monitor, ChevronDown } from 'lucide-react';
+import {
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Monitor,
+  ChevronDown,
+  Globe,
+} from 'lucide-react';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
   gemini: 'Gemini',
@@ -27,7 +46,7 @@ export const OPENAI_COMPATIBLE_PRESETS = [
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved?: () => void;
   currentTheme?: ThemeMode;
   onThemeChange?: (mode: ThemeMode) => void;
 }
@@ -44,6 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>(() => currentTheme || getStoredThemeMode());
+  const [searchSettings, setLocalSearchSettings] = useState<SearchSettings>(() => getSearchSettings());
 
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setActiveTab(currentSettings.activeProviderId);
       setTestResult(null);
       setSelectedTheme(currentTheme || getStoredThemeMode());
+      setLocalSearchSettings(getSearchSettings());
     }
   }, [isOpen, currentTheme]);
 
@@ -122,6 +143,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTestResult(null);
   };
 
+  const handleUpdateSearchProvider = (provider: 'duckduckgo' | 'tavily') => {
+    const updated: SearchSettings = { ...searchSettings, searchProvider: provider };
+    setLocalSearchSettings(updated);
+    setSearchSettings(updated);
+  };
+
+  const handleUpdateTavilyKey = (key: string) => {
+    const updated: SearchSettings = { ...searchSettings, tavilyApiKey: key };
+    setLocalSearchSettings(updated);
+    setSearchSettings(updated);
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
@@ -153,7 +186,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
     saveSettings(updatedSettings);
     setActiveProvider(activeTab);
-    onSaved();
+    setSearchSettings(searchSettings);
+    onSaved?.();
     onClose();
   };
 
@@ -272,6 +306,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <span className="break-all">{testResult.message}</span>
             </div>
           )}
+
+          {/* Konfigurasi Pencarian Web (Live Web Search) */}
+          <div className="p-2.5 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-700/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Pencarian Web (Live Research)
+                </span>
+              </div>
+              <span className="text-[10px] text-gray-400 capitalize">
+                {searchSettings.searchProvider === 'duckduckgo' ? 'Zero-Config' : 'AI Search'}
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
+                Penyedia Pencarian
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateSearchProvider('duckduckgo')}
+                  className={`py-1.5 px-2.5 rounded-md text-left flex flex-col transition-all border ${
+                    searchSettings.searchProvider === 'duckduckgo'
+                      ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 shadow-2xs'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                  }`}
+                >
+                  <span className="text-xs font-semibold">DuckDuckGo</span>
+                  <span className="text-[10px] opacity-75">Zero-Config Gratis</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpdateSearchProvider('tavily')}
+                  className={`py-1.5 px-2.5 rounded-md text-left flex flex-col transition-all border ${
+                    searchSettings.searchProvider === 'tavily'
+                      ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 text-blue-700 dark:text-blue-300 shadow-2xs'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-750'
+                  }`}
+                >
+                  <span className="text-xs font-semibold">Tavily AI Search</span>
+                  <span className="text-[10px] opacity-75">Optimasi Agen AI</span>
+                </button>
+              </div>
+            </div>
+
+            {(searchSettings.searchProvider === 'tavily' || Boolean(searchSettings.tavilyApiKey)) && (
+              <div>
+                <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Tavily API Key
+                </label>
+                <input
+                  type="password"
+                  value={searchSettings.tavilyApiKey || ''}
+                  onChange={e => handleUpdateTavilyKey(e.target.value)}
+                  placeholder="tvly-..."
+                  className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Dapatkan API Key di tavily.com. Jika kosong atau gagal, sistem otomatis menggunakan DuckDuckGo.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Pilihan Tema Tampilan */}
           <div className="p-2.5 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-700/80 space-y-1.5">

@@ -32,13 +32,20 @@ declare module 'vitest' {
 let lastRenderedHtml = '';
 function render(ui: React.ReactElement) {
   lastRenderedHtml = stripComments(renderToString(ui));
-  return { html: lastRenderedHtml };
+  return {
+    html: lastRenderedHtml,
+    rerender: (newUi: React.ReactElement) => {
+      lastRenderedHtml = stripComments(renderToString(newUi));
+      return { html: lastRenderedHtml };
+    },
+  };
 }
 
 const screen = {
   getByText: (pattern: RegExp | string) => {
+    const decoded = lastRenderedHtml.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
     const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    const match = regex.test(lastRenderedHtml);
+    const match = regex.test(decoded) || regex.test(lastRenderedHtml);
     return match ? { inDocument: true } : null;
   },
 };
@@ -873,7 +880,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(6);
+    expect(buttons.length).toBe(7);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -939,7 +946,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(6);
+    expect(buttons.length).toBe(7);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -1004,7 +1011,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(5);
+    expect(buttons.length).toBe(6);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
@@ -1063,6 +1070,17 @@ describe('QuickActionPresets Component', () => {
 
     const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelectPreset} disabled={true} />);
     expect(html).toContain('disabled=""');
+  });
+
+  it('renders web research presets for Excel, Word, and PowerPoint hosts', () => {
+    const { rerender } = render(<QuickActionPresets host="Excel" onSelectPreset={vi.fn()} />);
+    expect(screen.getByText(/Riset Web & Buat Tabel/i)).toBeInTheDocument();
+
+    rerender(<QuickActionPresets host="Word" onSelectPreset={vi.fn()} />);
+    expect(screen.getByText(/Riset Web & Tulis Laporan/i)).toBeInTheDocument();
+
+    rerender(<QuickActionPresets host="PowerPoint" onSelectPreset={vi.fn()} />);
+    expect(screen.getByText(/Riset Data & Buat Slide/i)).toBeInTheDocument();
   });
 });
 
