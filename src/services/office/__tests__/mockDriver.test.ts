@@ -133,6 +133,29 @@ describe('MockOfficeDriver', () => {
     expect(story.metrics.length).toBeGreaterThan(0);
     expect(story.recommendations.length).toBeGreaterThan(0);
   });
+
+  it('reviews compliance clauses and identifies high risk clauses', async () => {
+    const driver = new MockOfficeDriver();
+    driver.mockWordBody = 'Perjanjian Kerjasama. Klausul 1: Pembayaran 30 hari. Klausul 2: Pihak kedua menanggung seluruh ganti rugi tanpa batas untuk segala tuntutan.';
+    
+    const review = await driver.reviewComplianceClauses!({ contractType: 'vendor_service' });
+    expect(review.clausesReviewedCount).toBeGreaterThan(0);
+    expect(review.overallRiskLevel).toBe('high');
+    const liability = review.identifiedClauses.find(c => c.category === 'liability_indemnity');
+    expect(liability).toBeDefined();
+    expect(liability?.status).toBe('high_risk');
+    expect(review.missingCriticalClauses).toContain('force_majeure');
+  });
+
+  it('applies corporate style to mock document', async () => {
+    const driver = new MockOfficeDriver();
+    driver.mockWordBody = 'Judul Dokumen\nBab 1 Pendahuluan\nIni adalah isi paragraf dokumen kerja.';
+    
+    const styleRes = await driver.applyCorporateStyle!({ theme: 'corporate_navy', fontFamily: 'Calibri' });
+    expect(styleRes.appliedTheme).toBe('corporate_navy');
+    expect(styleRes.styledParagraphsCount).toBeGreaterThan(0);
+    expect(styleRes.headingsCount).toBeGreaterThan(0);
+  });
 });
 
 describe('getOfficeDriver', () => {

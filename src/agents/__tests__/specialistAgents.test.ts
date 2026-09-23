@@ -480,6 +480,40 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(res.success).toBe(true);
       expect(res.result).toContain('formal_indonesia');
     });
+
+    it('provides review_compliance_clauses tool and executes it successfully', async () => {
+      const mockDriver = new MockOfficeDriver();
+      mockDriver.mockWordBody = 'Perjanjian Jasa Vendor. Pihak kedua menanggung seluruh ganti rugi tanpa batas untuk segala tuntutan.';
+      const testAgent = new WordAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'review_compliance_clauses')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        { id: 'w-comp', name: 'review_compliance_clauses', arguments: { contractType: 'vendor_service' }, status: 'pending' },
+        context
+      );
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Review Kepatuhan Kontrak');
+      expect(res.result).toContain('TINGGI');
+      expect(res.result).toContain('LIABILITY_INDEMNITY');
+      expect(res.result).toContain('force_majeure');
+    });
+
+    it('provides apply_corporate_style tool and executes it successfully', async () => {
+      const mockDriver = new MockOfficeDriver();
+      mockDriver.mockWordBody = 'Judul Dokumen Resmi\nBab 1 Pendahuluan\nIsi naskah dokumen korporat.';
+      const testAgent = new WordAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'apply_corporate_style')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        { id: 'w-style', name: 'apply_corporate_style', arguments: { theme: 'corporate_navy' }, status: 'pending' },
+        context
+      );
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Format Brand Korporat Diterapkan');
+      expect(res.result).toContain('corporate_navy');
+    });
   });
 
   describe('PPTAgent execution', () => {

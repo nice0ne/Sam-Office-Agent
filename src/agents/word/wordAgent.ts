@@ -9,6 +9,8 @@ export class WordAgent implements IAgent {
   name = 'Word Specialist';
   hostType = 'Word' as const;
 
+  constructor(private driverOverride?: any) {}
+
   getSystemPrompt(context: AgentContext): string {
     return `Anda adalah Sam Office Agent spesialis Microsoft Word tingkat Expert.
 Anda ahli dalam penyusunan surat resmi, laporan profesional, perbaikan tata bahasa/proofreading, pemformatan heading dokumen, tabel terstruktur, pemisah halaman, pencarian/penggantian teks massal, serta pembuatan grafik visual.
@@ -24,7 +26,9 @@ PANDUAN ALUR KERJA:
    - Panggil \`insert_table\` untuk membuat tabel datanya.
    - Panggil juga \`insert_chart_image\` untuk menghasilkan dan menyisipkan visual grafik (batang, garis, atau lingkaran) langsung ke dalam dokumen.
 4. Jika pengguna secara spesifik meminta membuat halaman baru / jeda halaman di Word: gunakan \`insert_page_break\`.
-5. Jika pengguna meminta mencari atau mengganti kata/istilah di seluruh dokumen: gunakan \`find_and_replace\`.`;
+5. Jika pengguna meminta mencari atau mengganti kata/istilah di seluruh dokumen: gunakan \`find_and_replace\`.
+6. Jika pengguna meminta mereview kontrak, kepatuhan klausul, risiko hukum, atau SLA perjanjian: gunakan tool \`review_compliance_clauses\`.
+7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -162,6 +166,53 @@ PANDUAN ALUR KERJA:
           required: ['scope', 'tone'],
         },
       },
+      {
+        name: 'review_compliance_clauses',
+        description: 'Menganalisis dokumen/kontrak kerja/SLA untuk mendeteksi klausul berisiko tinggi (ganti rugi tanpa batas, denda berlebih, pemutusan sepihak) dan klausul penting yang hilang.',
+        parameters: {
+          type: 'object',
+          properties: {
+            scope: {
+              type: 'string',
+              enum: ['selection', 'document'],
+              description: 'Cakupan teks yang dianalisis (default: document)',
+            },
+            contractType: {
+              type: 'string',
+              enum: ['vendor_service', 'employment', 'nda', 'procurement', 'general'],
+              description: 'Jenis kontrak atau perjanjian kerja',
+            },
+            strictness: {
+              type: 'string',
+              enum: ['standard', 'strict'],
+              description: 'Tingkat ketelitian telaah klausul',
+            },
+          },
+        },
+      },
+      {
+        name: 'apply_corporate_style',
+        description: 'Menerapkan standarisasi format brand korporat (tema warna, tipografi, hierarki heading, spasi paragraf) ke dokumen atau teks yang dipilih.',
+        parameters: {
+          type: 'object',
+          properties: {
+            theme: {
+              type: 'string',
+              enum: ['corporate_navy', 'executive_emerald', 'modern_minimalist', 'official_government'],
+              description: 'Tema gaya korporat yang diinginkan',
+            },
+            scope: {
+              type: 'string',
+              enum: ['selection', 'document'],
+              description: 'Cakupan pemformatan (default: document)',
+            },
+            fontFamily: {
+              type: 'string',
+              description: 'Nama font kustom (opsional, misal Calibri, Segoe UI, Aptos, Times New Roman)',
+            },
+          },
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -172,7 +223,7 @@ PANDUAN ALUR KERJA:
       return metaCheck.result!;
     }
 
-    const driver = getOfficeDriver('Word');
+    const driver = this.driverOverride || getOfficeDriver('Word');
     try {
       if (toolCall.name === 'insert_content') {
         const { position, text, type } = toolCall.arguments;
@@ -239,6 +290,59 @@ PANDUAN ALUR KERJA:
           return { success: true, result: `Teks berhasil dipoles (${tone}): ${res.polishedText}` };
         }
         return { success: true, result: `Teks dokumen berhasil dipoles dengan gaya "${tone}".` };
+      }
+      if (toolCall.name === 'review_compliance_clauses') {
+        const { scope, contractType, strictness } = toolCall.arguments || {};
+        if (driver.reviewComplianceClauses) {
+          const res = await driver.reviewComplianceClauses({ scope, contractType, strictness });
+          const riskBadge = res.overallRiskLevel === 'high' ? '🔴 TINGGI' : res.overallRiskLevel === 'medium' ? '🟡 MODERAT' : '🟢 RENDAH';
+          let output = `### ⚖️ Laporan Review Kepatuhan Kontrak\n\n`;
+          output += `- **Jenis Dokumen:** ${res.contractType}\n`;
+          output += `- **Tingkat Risiko:** ${riskBadge}\n`;
+          output += `- **Total Klausul Dianalisis:** ${res.clausesReviewedCount}\n`;
+          output += `- **Ringkasan:** ${res.executiveSummary}\n\n`;
+
+          if (res.identifiedClauses.length > 0) {
+            output += `#### 📌 Temuan Klausul\n`;
+            for (const c of res.identifiedClauses) {
+              const statusEmoji = c.status === 'high_risk' ? '🚨' : c.status === 'warning' ? '⚠️' : '✅';
+              output += `- ${statusEmoji} **[${c.category.toUpperCase()}]** *"${c.excerpt}"*\n  - *Analisis:* ${c.analysis}\n`;
+              if (c.recommendation) {
+                output += `  - *Rekomendasi:* ${c.recommendation}\n`;
+              }
+            }
+            output += '\n';
+          }
+
+          if (res.missingCriticalClauses.length > 0) {
+            output += `#### ⚠️ Klausul Kritis yang Belum Tercantum\n`;
+            for (const m of res.missingCriticalClauses) {
+              output += `- Klausul \`${m}\` tidak ditemukan dalam naskah perjanjian.\n`;
+            }
+            output += '\n';
+          }
+
+          if (res.actionableRecommendations.length > 0) {
+            output += `#### 💡 Rekomendasi Tindak Lanjut\n`;
+            for (const r of res.actionableRecommendations) {
+              output += `- ${r}\n`;
+            }
+          }
+
+          return { success: true, result: output.trim() };
+        }
+        return { success: false, error: 'Driver Word tidak mendukung reviewComplianceClauses.' };
+      }
+      if (toolCall.name === 'apply_corporate_style') {
+        const { theme, scope, fontFamily } = toolCall.arguments || {};
+        if (driver.applyCorporateStyle) {
+          const res = await driver.applyCorporateStyle({ theme, scope, fontFamily });
+          return {
+            success: true,
+            result: `🎨 **Format Brand Korporat Diterapkan**\n- **Tema:** ${res.appliedTheme}\n- **Font:** ${res.fontFamily}\n- **Paragraf Diformat:** ${res.styledParagraphsCount}\n- **Heading Disesuaikan:** ${res.headingsCount}\n\n${res.message}`,
+          };
+        }
+        return { success: false, error: 'Driver Word tidak mendukung applyCorporateStyle.' };
       }
       return { success: false, error: 'Tool tidak ditemukan.' };
     } catch (e: any) {

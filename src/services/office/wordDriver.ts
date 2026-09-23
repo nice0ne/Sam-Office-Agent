@@ -1,4 +1,13 @@
-import { IDocumentDriver, PolishTextOptions, StructuredDocOptions } from './types';
+import {
+  ComplianceReviewOptions,
+  ComplianceReviewResult,
+  CorporateStyleOptions,
+  CorporateStyleResult,
+  IDocumentDriver,
+  PolishTextOptions,
+  StructuredDocOptions,
+} from './types';
+import { analyzeContractCompliance } from './complianceReviewer';
 
 declare const Word: any;
 
@@ -144,6 +153,78 @@ export class WordDriver implements Partial<IDocumentDriver> {
       await context.sync();
       const currentText = targetRange.text || '';
       return { success: true, polishedText: currentText };
+    });
+  }
+
+  async reviewComplianceClauses(options?: ComplianceReviewOptions): Promise<ComplianceReviewResult> {
+    return await Word.run(async (context: any) => {
+      const targetRange = options?.scope === 'selection' ? context.document.getSelection() : context.document.body;
+      targetRange.load('text');
+      await context.sync();
+      const text = targetRange.text || '';
+      return analyzeContractCompliance(text, options);
+    });
+  }
+
+  async applyCorporateStyle(options?: CorporateStyleOptions): Promise<CorporateStyleResult> {
+    return await Word.run(async (context: any) => {
+      const theme = options?.theme || 'corporate_navy';
+      let primaryColor = '#1E3A8A';
+      let defaultFont = 'Calibri';
+
+      if (theme === 'executive_emerald') {
+        primaryColor = '#065F46';
+        defaultFont = 'Aptos';
+      } else if (theme === 'modern_minimalist') {
+        primaryColor = '#0F172A';
+        defaultFont = 'Segoe UI';
+      } else if (theme === 'official_government') {
+        primaryColor = '#000000';
+        defaultFont = 'Times New Roman';
+      }
+
+      const fontFamily = options?.fontFamily || defaultFont;
+      const targetRange = options?.scope === 'selection' ? context.document.getSelection() : context.document.body;
+      const paragraphs = targetRange.paragraphs;
+      paragraphs.load('items,text');
+      await context.sync();
+
+      let styledCount = 0;
+      let headingsCount = 0;
+
+      for (let i = 0; i < (paragraphs.items ? paragraphs.items.length : 0); i++) {
+        const p = paragraphs.items[i];
+        const text = (p.text || '').trim();
+        if (!text) continue;
+
+        p.font.name = fontFamily;
+        styledCount++;
+
+        const isHeading = /^(bab|pasal|section|judul|#|\d+\.\s+[A-Z])/i.test(text);
+        if (isHeading) {
+          headingsCount++;
+          p.font.bold = true;
+          p.font.color = primaryColor;
+          p.spaceBefore = 12;
+          p.spaceAfter = 6;
+        } else {
+          p.font.size = 11;
+          p.font.color = '#334155';
+          p.spaceBefore = 0;
+          p.spaceAfter = 6;
+          p.lineSpacing = 1.15;
+        }
+      }
+
+      await context.sync();
+
+      return {
+        appliedTheme: theme,
+        fontFamily,
+        styledParagraphsCount: styledCount || 1,
+        headingsCount: headingsCount || 1,
+        message: `Berhasil menerapkan format korporat (${theme}, font: ${fontFamily}) pada ${styledCount} paragraf.`,
+      };
     });
   }
 }

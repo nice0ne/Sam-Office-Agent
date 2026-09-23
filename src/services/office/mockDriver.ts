@@ -1,7 +1,12 @@
 import {
   CleanDataOptions,
   CleanDataResult,
+  ComplianceClause,
+  ComplianceReviewOptions,
+  ComplianceReviewResult,
   ConditionalFormattingOptions,
+  CorporateStyleOptions,
+  CorporateStyleResult,
   DataStoryMetric,
   DataStoryOptions,
   DataStoryResult,
@@ -12,10 +17,12 @@ import {
   StructuredDocOptions,
   ThemedDeckOptions,
 } from './types';
+import { analyzeContractCompliance } from './complianceReviewer';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
   mockData?: any[][];
+  mockWordBody?: string;
   private excelGrid: Record<string, any[][]> = {};
   private wordContent: string[] = [];
   private slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
@@ -270,6 +277,28 @@ export class MockOfficeDriver implements IDocumentDriver {
     return {
       success: true,
       polishedText: textToSet,
+    };
+  }
+
+  async reviewComplianceClauses(options?: ComplianceReviewOptions): Promise<ComplianceReviewResult> {
+    const text = this.mockWordBody || this.wordContent.join('\n');
+    return analyzeContractCompliance(text, options);
+  }
+
+  async applyCorporateStyle(options?: CorporateStyleOptions): Promise<CorporateStyleResult> {
+    const theme = options?.theme || 'corporate_navy';
+    const fontFamily = options?.fontFamily || (theme === 'official_government' ? 'Times New Roman' : 'Calibri');
+    const text = this.mockWordBody || this.wordContent.join('\n');
+    const paragraphs = text.split(/\r?\n/).filter(p => p.trim().length > 0);
+    const headingsCount = paragraphs.filter(p => /^(bab|pasal|section|judul|#)/i.test(p.trim())).length || 1;
+    const styledParagraphsCount = paragraphs.length || 1;
+
+    return {
+      appliedTheme: theme,
+      fontFamily,
+      styledParagraphsCount,
+      headingsCount,
+      message: `Berhasil menerapkan gaya korporat ${theme} (${fontFamily}) pada ${styledParagraphsCount} paragraf.`,
     };
   }
 
