@@ -331,7 +331,7 @@ git commit -m "feat(agent): implement import_from_cross_app_hub in PPTAgent"
 **Interfaces:**
 - Produces: `CrossAppSnapshotCard` rendered when a fresh cross-app snapshot is present, with context-appropriate action buttons and dismissal.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/components/__tests__/chatAndActions.test.tsx`:
 ```typescript
@@ -357,28 +357,28 @@ it('renders CrossAppSnapshotCard when fresh snapshot from another host exists', 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/components/__tests__/chatAndActions.test.tsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `CrossAppSnapshotCard.tsx` and integrate into `ChatContainer.tsx` and `QuickActionPresets.tsx`**
+- [x] **Step 3: Implement `CrossAppSnapshotCard.tsx` and integrate into `ChatContainer.tsx` and `QuickActionPresets.tsx`**
 
 - Create `CrossAppSnapshotCard.tsx` with host badges (Excel/Word/PPT), summary details, action buttons, and dismiss handler.
 - Mount `CrossAppSnapshotCard` in `ChatContainer.tsx` above the message stream / input bar.
 - Add cross-app preset buttons to `PRESETS_BY_HOST` for Excel, Word, and PowerPoint.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/components/__tests__/chatAndActions.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Run full test suite to ensure 0 regressions**
+- [x] **Step 5: Run full test suite to ensure 0 regressions**
 
 Run: `npx vitest run`
 Expected: All test files pass with 0 failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/Chat/CrossAppSnapshotCard.tsx src/components/Chat/ChatContainer.tsx src/components/Chat/QuickActionPresets.tsx src/components/__tests__/chatAndActions.test.tsx
