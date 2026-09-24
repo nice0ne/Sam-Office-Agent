@@ -48,6 +48,20 @@ const screen = {
     const match = regex.test(decoded) || regex.test(lastRenderedHtml);
     return match ? { inDocument: true } : null;
   },
+  getByTitle: (pattern: RegExp | string) => {
+    const decoded = lastRenderedHtml.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    const titleRegex = /title="([^"]*)"/g;
+    let matchFound = false;
+    let match;
+    while ((match = titleRegex.exec(decoded)) !== null) {
+      if (regex.test(match[1])) {
+        matchFound = true;
+        break;
+      }
+    }
+    return matchFound ? { inDocument: true } : null;
+  },
 };
 
 expect.extend({
@@ -729,6 +743,14 @@ describe('InputBar Component', () => {
     expect(findElement(vdom, el => el.type === 'textarea' || el.type === 'input').props.value).toBe('');
     expect(mockInstance.start).toHaveBeenCalled();
   });
+
+  it('renders file attachment button in InputBar and RAG quick action preset', () => {
+    render(<InputBar onSendMessage={vi.fn()} host="Word" />);
+    expect(screen.getByTitle(/Lampirkan berkas referensi/i)).toBeInTheDocument();
+
+    render(<QuickActionPresets host="Word" onSelectPreset={vi.fn()} />);
+    expect(screen.getByText(/Analisis Berkas Referensi/i)).toBeInTheDocument();
+  });
 });
 
 describe('ChatContainer Component', () => {
@@ -880,7 +902,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -946,7 +968,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(9);
+    expect(buttons.length).toBe(10);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -1011,7 +1033,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();

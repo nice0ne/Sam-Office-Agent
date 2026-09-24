@@ -1,7 +1,8 @@
 import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Mic, MicOff } from 'lucide-react';
+import { Send, Sparkles, Loader2, Mic, MicOff, Paperclip, FileText, X } from 'lucide-react';
 import { useSpeechRecognition, SpeechLanguage } from '../../hooks/useSpeechRecognition';
 import { QuickActionPresets } from './QuickActionPresets';
+import { addDocument, removeDocument, listDocuments } from '../../services/rag/ragEngine';
 import { HostType } from '../../types';
 
 export interface InputBarProps {
@@ -18,7 +19,9 @@ export const InputBar: React.FC<InputBarProps> = ({
   host = 'Excel',
 }) => {
   const [input, setInput] = useState('');
+  const [docs, setDocs] = useState(listDocuments());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     isSupported,
@@ -79,6 +82,22 @@ export const InputBar: React.FC<InputBarProps> = ({
     setLanguage(nextLang);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        addDocument(file.name, content);
+        setDocs(listDocuments());
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const currentPlaceholder = disabled
     ? 'Sam sedang memproses...'
     : isListening
@@ -92,6 +111,25 @@ export const InputBar: React.FC<InputBarProps> = ({
         onSelectPreset={prompt => onSendMessage(prompt)}
         disabled={disabled}
       />
+      {docs.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 mb-1.5 rounded-md">
+          {docs.map(doc => (
+            <span key={doc.id} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-md">
+              <FileText className="w-3 h-3" />
+              <span className="font-medium truncate max-w-[140px]">{doc.name}</span>
+              <span className="text-[10px] opacity-75">({doc.totalChunks} chunks)</span>
+              <button
+                type="button"
+                onClick={() => { removeDocument(doc.id); setDocs(listDocuments()); }}
+                className="hover:text-red-500 ml-0.5"
+                title={`Hapus ${doc.name}`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       {speechError && (
         <div className="mb-1.5 px-2 py-0.5 text-[11px] rounded bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center justify-between">
           <span>
@@ -153,6 +191,25 @@ export const InputBar: React.FC<InputBarProps> = ({
             <Mic className="w-3.5 h-3.5" />
           )}
         </button>
+
+        {/* Attachment button (Mini-RAG) */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={Boolean(disabled)}
+          title="Lampirkan berkas referensi (Mini-RAG)"
+          aria-label="Lampirkan berkas referensi"
+          className="p-1 mb-0.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-40 transition shrink-0"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.csv,.json,.html,.log"
+          className="hidden"
+          onChange={handleFileChange}
+        />
 
         {/* Send message button */}
         <button

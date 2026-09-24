@@ -19,6 +19,12 @@ export const UNIVERSAL_LEARN_SOUL_PRESET: QuickPresetItem = {
   prompt: 'Catat gaya bahasa, aturan format angka, dan preferensi istilah dari dokumen ini ke dalam direktif korporat (SOUL.md) agar selalu diterapkan pada pekerjaan berikutnya.',
 };
 
+export const UNIVERSAL_RAG_PRESET: QuickPresetItem = {
+  id: 'universal_query_rag',
+  label: '📑 Analisis Berkas Referensi',
+  prompt: 'Analisis informasi dan poin-poin penting dari berkas referensi yang saya lampirkan, lalu simpulkan intisarinya ke dalam dokumen ini.',
+};
+
 export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
   Excel: [
     {
@@ -56,6 +62,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🌐 Riset Web & Buat Tabel',
       prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
     },
+    UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
   Word: [
@@ -99,6 +106,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📐 Buat Diagram Alur (Flowchart)',
       prompt: 'Buat diagram alur proses visual (flowchart) profesional berdasarkan SOP atau proses kerja dalam dokumen ini, lalu sisipkan langsung ke naskah.',
     },
+    UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
   PowerPoint: [
@@ -137,6 +145,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📐 Sisipkan Slide Flowchart Alur',
       prompt: 'Buatkan 1 slide visual khusus diagram alur proses (flowchart) bisnis dengan tema profesional dan naskah penjelasan pemateri.',
     },
+    UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
   BrowserDev: [
@@ -175,6 +184,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🌐 Riset Web & Buat Tabel',
       prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
     },
+    UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
 };
