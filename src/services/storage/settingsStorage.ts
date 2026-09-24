@@ -118,6 +118,34 @@ export function setActiveProvider(id: ProviderId): void {
   saveSettings(settings);
 }
 
+export function getProviders(): ProviderConfig[] {
+  const settings = getSettings();
+  return Object.values(settings.providers);
+}
+
+export function saveProviders(providers: ProviderConfig[] | Record<ProviderId, ProviderConfig>): void {
+  const current = getSettings();
+  if (Array.isArray(providers)) {
+    const map: Record<ProviderId, ProviderConfig> = { ...current.providers };
+    for (const p of providers) {
+      if (p && p.id) {
+        map[p.id as ProviderId] = p;
+      }
+    }
+    current.providers = map;
+  } else if (providers && typeof providers === 'object') {
+    current.providers = { ...current.providers, ...providers };
+  }
+  saveSettings(current);
+}
+
+export function saveActiveProvider(idOrConfig: ProviderId | ProviderConfig | string): void {
+  const id = typeof idOrConfig === 'string' ? idOrConfig : idOrConfig?.id;
+  if (id) {
+    setActiveProvider(id as ProviderId);
+  }
+}
+
 export function getExecutionMode(): ExecutionMode {
   return getSettings().executionMode;
 }

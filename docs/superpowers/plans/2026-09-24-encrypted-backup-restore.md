@@ -154,7 +154,7 @@ git commit -m "feat(crypto): implement Web Crypto AES-256-GCM and PBKDF2 backup 
   - `createBackup(options?: { password?: string; appVersion?: string }): Promise<string>`
   - `restoreBackup(envelopeJson: string, options?: { password?: string; cleanRestore?: boolean }): Promise<RestoreResult>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/backupManager.test.ts`:
 
@@ -232,12 +232,12 @@ describe('backupManager', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/backupManager.test.ts`
 Expected: FAIL with "Cannot find module '../src/services/storage/backupManager'".
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/services/storage/backupManager.ts`:
 - Implement `createBackup(options?: { password?: string; appVersion?: string }): Promise<string>`:
@@ -254,12 +254,12 @@ Create `src/services/storage/backupManager.ts`:
   - Restores each slice into its respective storage.
   - Returns `RestoreResult`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/backupManager.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/services/storage/backupManager.ts tests/backupManager.test.ts

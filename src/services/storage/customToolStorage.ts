@@ -28,7 +28,11 @@ export function getCustomTools(host?: HostType): CustomTool[] {
   }
 }
 
-export function saveCustomTool(tool: Omit<CustomTool, 'id' | 'createdAt' | 'usageCount'>): CustomTool {
+export function saveCustomTool(
+  tool: Omit<CustomTool, 'id' | 'createdAt' | 'usageCount' | 'parameters'> & {
+    parameters?: ToolDefinition['parameters'];
+  }
+): CustomTool {
   const existing = getCustomTools();
   const normalizedName = tool.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
 
