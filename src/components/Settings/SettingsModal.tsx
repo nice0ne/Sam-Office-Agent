@@ -19,6 +19,7 @@ import {
 } from '../../services/storage/soulStorage';
 import { testProviderConnection } from '../../services/llm/factory';
 import { ThemeMode, getStoredThemeMode, setStoredThemeMode, applyTheme } from '../../utils/theme';
+import { createBackup, restoreBackup } from '../../services/storage/backupManager';
 import {
   X,
   CheckCircle2,
@@ -34,6 +35,9 @@ import {
   BookOpen,
   Download,
   Upload,
+  Database,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
@@ -61,6 +65,10 @@ interface SettingsModalProps {
   onSaved?: () => void;
   currentTheme?: ThemeMode;
   onThemeChange?: (mode: ThemeMode) => void;
+  providers?: any;
+  activeProvider?: string;
+  onUpdateProviders?: (providers: any) => void;
+  onSelectProvider?: (provider: any) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -79,6 +87,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [soulConfig, setSoulConfig] = useState<SoulConfig>(() => getSoulConfig());
   const soulFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Backup & Restore states
+  const [exportPassword, setExportPassword] = useState('');
+  const [exportPlainJson, setExportPlainJson] = useState(false);
+  const [showExportPassword, setShowExportPassword] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const [restoreFileContent, setRestoreFileContent] = useState<string | null>(null);
+  const [restoreFileName, setRestoreFileName] = useState('');
+  const [isRestoreEncrypted, setIsRestoreEncrypted] = useState(false);
+  const [restorePassword, setRestorePassword] = useState('');
+  const [showRestorePassword, setShowRestorePassword] = useState(false);
+  const [cleanRestore, setCleanRestore] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [backupStatus, setBackupStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    details?: string;
+  } | null>(null);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (isOpen) {
       const currentSettings = getSettings();
@@ -88,6 +116,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setSelectedTheme(currentTheme || getStoredThemeMode());
       setLocalSearchSettings(getSearchSettings());
       setSoulConfig(getSoulConfig());
+      setBackupStatus(null);
+      setRestoreFileContent(null);
+      setRestoreFileName('');
+      setRestorePassword('');
+      setIsRestoreEncrypted(false);
     }
   }, [isOpen, currentTheme]);
 
@@ -270,6 +303,135 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       console.error('Gagal mengimpor SOUL.md:', err);
     } finally {
       e.target.value = '';
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      setIsExporting(true);
+      setBackupStatus(null);
+      const password = exportPlainJson ? undefined : exportPassword.trim() || undefined;
+      const backupJson = await createBackup({ password });
+
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([backupJson], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const dateStr = new Date().toISOString().split('T')[0];
+        const ext = exportPlainJson ? 'json' : 'sam-backup';
+        link.download = `sam-office-backup-${dateStr}.${ext}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      setBackupStatus({
+        type: 'success',
+        message: exportPlainJson
+          ? 'Cadangan Plain JSON berhasil diunduh!'
+          : 'Cadangan terenkripsi AES-256-GCM berhasil diunduh!',
+      });
+    } catch (err: any) {
+      setBackupStatus({
+        type: 'error',
+        message: `Gagal membuat cadangan: ${err?.message || err}`,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleSelectBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBackupStatus(null);
+    setRestoreFileName(file.name);
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          setRestoreFileContent(content);
+          const parsed = JSON.parse(content);
+          setIsRestoreEncrypted(Boolean(parsed.encrypted));
+        } catch {
+          setBackupStatus({
+            type: 'error',
+            message: 'Berkas tidak valid: format JSON tidak terbaca.',
+          });
+          setRestoreFileContent(null);
+          setIsRestoreEncrypted(false);
+        }
+      };
+      reader.onerror = () => {
+        setBackupStatus({
+          type: 'error',
+          message: 'Gagal membaca berkas cadangan.',
+        });
+      };
+      reader.readAsText(file);
+    } catch (err: any) {
+      setBackupStatus({
+        type: 'error',
+        message: `Gagal membuka berkas: ${err?.message || err}`,
+      });
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    if (!restoreFileContent) {
+      setBackupStatus({
+        type: 'error',
+        message: 'Pilih berkas cadangan terlebih dahulu.',
+      });
+      return;
+    }
+
+    try {
+      setIsRestoring(true);
+      setBackupStatus(null);
+
+      const res = await restoreBackup(restoreFileContent, {
+        password: isRestoreEncrypted ? restorePassword : undefined,
+        cleanRestore,
+      });
+
+      if (res.success) {
+        const currentSettings = getSettings();
+        setSettings(currentSettings);
+        setActiveTab(currentSettings.activeProviderId);
+        setLocalSearchSettings(getSearchSettings());
+        setSoulConfig(getSoulConfig());
+
+        const summaryParts = [
+          `${res.summary.providersCount} konfigurasi provider AI`,
+          res.summary.soulRestored ? 'pedoman SOUL.md' : null,
+          `${res.summary.customToolsCount} custom tools`,
+          `${res.summary.snapshotsCount} snapshot lintas aplikasi`,
+        ].filter(Boolean);
+
+        setBackupStatus({
+          type: 'success',
+          message: 'Pemulihan data berhasil!',
+          details: `Berhasil memulihkan: ${summaryParts.join(', ')}.`,
+        });
+
+        setRestoreFileContent(null);
+        setRestoreFileName('');
+        setRestorePassword('');
+        setIsRestoreEncrypted(false);
+      }
+    } catch (err: any) {
+      setBackupStatus({
+        type: 'error',
+        message: `Gagal memulihkan cadangan: ${err?.message || err}`,
+      });
+    } finally {
+      setIsRestoring(false);
     }
   };
 
@@ -602,6 +764,171 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Impor SOUL.md</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cadangan & Pemulihan Data (Backup & Restore) */}
+          <div className="p-2.5 bg-gray-50 dark:bg-gray-900/60 rounded-lg border border-gray-200 dark:border-gray-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Cadangan &amp; Pemulihan Data (Backup &amp; Restore)
+                </span>
+              </div>
+              <span className="text-[10px] text-gray-400">AES-256-GCM</span>
+            </div>
+
+            {/* Status Message / Banner */}
+            {backupStatus && (
+              <div
+                className={`p-2 rounded-lg text-xs flex flex-col gap-0.5 ${
+                  backupStatus.type === 'success'
+                    ? 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-medium">
+                  {backupStatus.type === 'success' ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" />
+                  )}
+                  <span>{backupStatus.message}</span>
+                </div>
+                {backupStatus.details && (
+                  <p className="text-[11px] opacity-90 pl-5">{backupStatus.details}</p>
+                )}
+              </div>
+            )}
+
+            {/* Export Card */}
+            <div className="p-2 bg-white dark:bg-gray-800/80 rounded-md border border-gray-200 dark:border-gray-700 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                  Ekspor Cadangan
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={exportPlainJson}
+                    onChange={e => setExportPlainJson(e.target.checked)}
+                    className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                  />
+                  <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                    Ekspor tanpa enkripsi (Plain JSON)
+                  </span>
+                </label>
+              </div>
+
+              {!exportPlainJson && (
+                <div className="relative">
+                  <input
+                    type={showExportPassword ? 'text' : 'password'}
+                    value={exportPassword}
+                    onChange={e => setExportPassword(e.target.value)}
+                    placeholder="Kata sandi enkripsi cadangan..."
+                    className="w-full text-xs px-3 py-1.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowExportPassword(!showExportPassword)}
+                    aria-label={showExportPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showExportPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadBackup}
+                disabled={isExporting}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-[11px] font-medium bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition shadow-2xs"
+              >
+                {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>📥 Unduh Cadangan (.sam-backup)</span>
+              </button>
+            </div>
+
+            {/* Restore Card */}
+            <div className="p-2 bg-white dark:bg-gray-800/80 rounded-md border border-gray-200 dark:border-gray-700 space-y-2">
+              <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 block">
+                Pemulihan Cadangan
+              </span>
+
+              <input
+                type="file"
+                ref={backupFileInputRef}
+                accept=".sam-backup,.json"
+                className="hidden"
+                onChange={handleSelectBackupFile}
+              />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => backupFileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-[11px] font-medium border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-2xs"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>📤 Pilih Berkas Cadangan</span>
+                </button>
+              </div>
+
+              {restoreFileName && (
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 truncate">
+                  Berkas dipilih: <span className="font-semibold text-gray-700 dark:text-gray-300">{restoreFileName}</span>
+                  {isRestoreEncrypted && <span className="ml-1 text-amber-600 dark:text-amber-400 font-medium">(Terenkripsi)</span>}
+                </div>
+              )}
+
+              {isRestoreEncrypted && (
+                <div className="relative">
+                  <input
+                    type={showRestorePassword ? 'text' : 'password'}
+                    value={restorePassword}
+                    onChange={e => setRestorePassword(e.target.value)}
+                    placeholder="Masukkan kata sandi pembuka cadangan..."
+                    className="w-full text-xs px-3 py-1.5 pr-8 rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRestorePassword(!showRestorePassword)}
+                    aria-label={showRestorePassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showRestorePassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              )}
+
+              <label className="flex items-center gap-1.5 cursor-pointer select-none pt-0.5">
+                <input
+                  type="checkbox"
+                  checked={cleanRestore}
+                  onChange={e => setCleanRestore(e.target.checked)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                />
+                <span className="text-[10px] text-gray-600 dark:text-gray-400">
+                  Bersihkan data lokal saat ini sebelum restore (Clean Restore)
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={handleRestoreBackup}
+                disabled={!restoreFileContent || isRestoring}
+                className={`w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-[11px] font-medium transition ${
+                  !restoreFileContent || isRestoring
+                    ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 border border-gray-200 dark:border-gray-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs'
+                }`}
+              >
+                {isRestoring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>Pulihkan Data (Restore)</span>
               </button>
             </div>
           </div>

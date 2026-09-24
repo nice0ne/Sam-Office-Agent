@@ -577,5 +577,23 @@ describe('SettingsModal Component', () => {
     expect(screen.getByText(/Ekspor SOUL\.md/i)).toBeInTheDocument();
     expect(screen.getByText(/Impor SOUL\.md/i)).toBeInTheDocument();
   });
+
+  it('renders Backup & Restore section with export and restore controls in SettingsModal', () => {
+    const mockProviders = getSettings().providers;
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        providers={mockProviders}
+        activeProvider="gemini"
+        onUpdateProviders={vi.fn()}
+        onSelectProvider={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Cadangan & Pemulihan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Unduh Cadangan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pilih Berkas Cadangan/i)).toBeInTheDocument();
+  });
 });
 
