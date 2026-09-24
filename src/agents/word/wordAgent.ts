@@ -10,6 +10,7 @@ import {
 } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
 import { addLearnedDirective } from '../../services/storage/soulStorage';
+import { queryKnowledge } from '../../services/rag/ragEngine';
 
 export class WordAgent implements IAgent {
   id = 'word-specialist';
@@ -37,7 +38,8 @@ PANDUAN ALUR KERJA:
 6. Jika pengguna meminta mereview kontrak, kepatuhan klausul, risiko hukum, atau SLA perjanjian: gunakan tool \`review_compliance_clauses\`.
 7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.
 8. Jika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word: gunakan tool \`insert_process_flowchart\` untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen.
-9. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah/istilah resmi, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.`;
+9. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah/istilah resmi, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.
+10. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan fakta, angka, klausul, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis atau memperbarui dokumen.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -306,6 +308,18 @@ PANDUAN ALUR KERJA:
           required: ['rule'],
         },
       },
+      {
+        name: 'search_reference_knowledge',
+        description: 'Mencari fakta, klausul, data angka, atau pedoman spesifik dari berkas referensi lokal yang dilampirkan pengguna (SOP, pedoman, data CSV, catatan laporan).',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Pertanyaan atau kata kunci topik yang ingin dicari di dalam berkas referensi' },
+            maxResults: { type: 'number', description: 'Jumlah kutipan chunk relevan yang ingin diambil (default: 3)' },
+          },
+          required: ['query'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -541,6 +555,25 @@ PANDUAN ALUR KERJA:
           };
         }
         return { success: false, error: 'Driver Word tidak mendukung insertProcessFlowchart.' };
+      }
+
+      if (toolCall.name === 'search_reference_knowledge') {
+        const { query, maxResults = 3 } = toolCall.arguments || {};
+        if (!query) {
+          return { success: false, error: 'Query pencarian referensi wajib diisi.' };
+        }
+        const results = queryKnowledge(query, { maxResults: Number(maxResults) || 3 });
+        if (results.length === 0) {
+          return {
+            success: true,
+            result: `Tidak ditemukan kutipan yang relevan dari berkas referensi untuk kata kunci: "${query}".`,
+          };
+        }
+        let formattedText = `📖 **Hasil Temuan Berkas Referensi:**\n\n`;
+        results.forEach((r, idx) => {
+          formattedText += `[${idx + 1}] **Sumber ${r.sourceCitation}** (Skor relevansi: ${r.score.toFixed(2)}):\n> "${r.snippet}"\n\n`;
+        });
+        return { success: true, result: formattedText.trim() };
       }
 
       return { success: false, error: 'Tool tidak ditemukan.' };

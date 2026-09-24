@@ -257,7 +257,7 @@ git commit -m "feat(rag): implement in-memory BM25 retrieval engine and document
 - Consumes: `queryKnowledge` from `../../services/rag/ragEngine`
 - Produces: `search_reference_knowledge` tool in `ExcelAgent`, `WordAgent`, and `PPTAgent`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/ragAgentTools.test.ts`:
 
@@ -315,12 +315,12 @@ describe('search_reference_knowledge Agent Tool', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run tests/ragAgentTools.test.ts`
 Expected: FAIL with "tool search_reference_knowledge not found".
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 1. In `src/agents/excel/excelAgent.ts`, `wordAgent.ts`, `pptAgent.ts`:
    - Import `queryKnowledge` from `../../services/rag/ragEngine`.
@@ -348,12 +348,12 @@ Expected: FAIL with "tool search_reference_knowledge not found".
    - Add Rule 9 to `buildSystemPrompt()`:
      `"9. KNOWLEDGE BASE & REFERENSI LOKAL (MINI-RAG): Jika pengguna melampirkan berkas dokumen referensi atau bertanya mengenai SOP/data dari dokumen yang dilampirkan, gunakan tool search_reference_knowledge untuk mencari kutipan data faktual sebelum menyusun naskah, tabel, atau slide."`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/ragAgentTools.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/agents/excel/excelAgent.ts src/agents/word/wordAgent.ts src/agents/powerpoint/pptAgent.ts src/agents/coordinator/samCoordinator.ts tests/ragAgentTools.test.ts

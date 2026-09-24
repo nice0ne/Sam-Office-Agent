@@ -6,6 +6,7 @@ import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
 import { saveCrossAppSnapshot } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
 import { addLearnedDirective } from '../../services/storage/soulStorage';
+import { queryKnowledge } from '../../services/rag/ragEngine';
 
 export class ExcelAgent implements IAgent {
   id = 'excel-specialist';
@@ -37,7 +38,8 @@ Ketika pengguna meminta membuat ringkasan/summary dan membuat chart (misal: "sum
 
 PENTING:
 Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.
-PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.`;
+PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.
+PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis data atau menyusun formula.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -220,6 +222,18 @@ PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan a
             explanation: { type: 'string', description: 'Alasan atau konteks mengapa aturan ini dipelajari dari percakapan.' },
           },
           required: ['rule'],
+        },
+      },
+      {
+        name: 'search_reference_knowledge',
+        description: 'Mencari fakta, klausul, data angka, atau pedoman spesifik dari berkas referensi lokal yang dilampirkan pengguna (SOP, pedoman, data CSV, catatan laporan).',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Pertanyaan atau kata kunci topik yang ingin dicari di dalam berkas referensi' },
+            maxResults: { type: 'number', description: 'Jumlah kutipan chunk relevan yang ingin diambil (default: 3)' },
+          },
+          required: ['query'],
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -491,6 +505,25 @@ PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan a
           }
         }
         return { success: true, result: text.trim() };
+      }
+
+      if (toolCall.name === 'search_reference_knowledge') {
+        const { query, maxResults = 3 } = toolCall.arguments || {};
+        if (!query) {
+          return { success: false, error: 'Query pencarian referensi wajib diisi.' };
+        }
+        const results = queryKnowledge(query, { maxResults: Number(maxResults) || 3 });
+        if (results.length === 0) {
+          return {
+            success: true,
+            result: `Tidak ditemukan kutipan yang relevan dari berkas referensi untuk kata kunci: "${query}".`,
+          };
+        }
+        let formattedText = `📖 **Hasil Temuan Berkas Referensi:**\n\n`;
+        results.forEach((r, idx) => {
+          formattedText += `[${idx + 1}] **Sumber ${r.sourceCitation}** (Skor relevansi: ${r.score.toFixed(2)}):\n> "${r.snippet}"\n\n`;
+        });
+        return { success: true, result: formattedText.trim() };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };

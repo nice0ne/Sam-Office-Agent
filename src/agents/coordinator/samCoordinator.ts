@@ -57,7 +57,8 @@ Aturan Penting:
 5. Selalu utamakan bahasa Indonesia yang baik, terstruktur, dan profesional.
 6. PENCARIAN DATA WEB TERKINI (WEB SEARCH): Jika pengguna meminta data real-time, kurs mata uang, tren industri, fakta terbaru, atau informasi yang memerlukan data eksternal internet, gunakan tool web_search terlebih dahulu. Setelah mendapatkan data, langsung eksekusi ke dokumen (tulis sel, buat tabel, atau buat slide) dan sertakan sumber referensi di akhir pesan chat.
 7. DIAGRAM ALUR PROSES (FLOWCHART): Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word atau PowerPoint, gunakan tool insert_process_flowchart untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen/slide.
-8. CORPORATE DIRECTIVES & SELF-LEARNING (SOUL.md): Jika pengguna memberikan arahan gaya baru, koreksi istilah, atau aturan penulisan spesifik, gunakan tool learn_corporate_directive untuk menyimpannya ke memori korporat.`;
+8. CORPORATE DIRECTIVES & SELF-LEARNING (SOUL.md): Jika pengguna memberikan arahan gaya baru, koreksi istilah, atau aturan penulisan spesifik, gunakan tool learn_corporate_directive untuk menyimpannya ke memori korporat.
+9. KNOWLEDGE BASE & REFERENSI LOKAL (MINI-RAG): Jika pengguna melampirkan berkas dokumen referensi atau bertanya mengenai SOP/data dari dokumen yang dilampirkan, gunakan tool search_reference_knowledge untuk mencari kutipan data faktual sebelum menyusun naskah, tabel, atau slide.`;
 
     if (soul.enabled) {
       prompt += `\n\n=== CORPORATE BRAND VOICE & SOUL DIRECTIVES (SOUL.md) ===

@@ -8,6 +8,7 @@ import {
 } from '../../services/storage/crossAppBridge';
 import { searchWeb } from '../../services/search';
 import { addLearnedDirective } from '../../services/storage/soulStorage';
+import { queryKnowledge } from '../../services/rag/ragEngine';
 
 export class PPTAgent implements IAgent {
   id = 'ppt-specialist';
@@ -48,7 +49,8 @@ export class PPTAgent implements IAgent {
       '5. VISUALISASI DIAGRAM ALUR PROSES (FLOWCHART):\n' +
       '   - Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di PowerPoint, gunakan tool "insert_process_flowchart" untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke slide presentasi.\n' +
       '6. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.\n' +
-      '7. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, tema warna, preferensi tata letak/format slide, atau direktif presentasi spesifik, proaktif panggil tool "learn_corporate_directive" untuk menyimpannya ke memori korporat.';
+      '7. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, tema warna, preferensi tata letak/format slide, atau direktif presentasi spesifik, proaktif panggil tool "learn_corporate_directive" untuk menyimpannya ke memori korporat.\n' +
+      '8. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan materi, fakta, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool "search_reference_knowledge" untuk mencari kutipan relevan sebelum menyusun slide presentasi.';
   }
 
   getTools(): ToolDefinition[] {
@@ -278,6 +280,18 @@ export class PPTAgent implements IAgent {
             explanation: { type: 'string', description: 'Alasan atau konteks mengapa aturan ini dipelajari dari percakapan.' },
           },
           required: ['rule'],
+        },
+      },
+      {
+        name: 'search_reference_knowledge',
+        description: 'Mencari fakta, klausul, data angka, atau pedoman spesifik dari berkas referensi lokal yang dilampirkan pengguna (SOP, pedoman, data CSV, catatan laporan).',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Pertanyaan atau kata kunci topik yang ingin dicari di dalam berkas referensi' },
+            maxResults: { type: 'number', description: 'Jumlah kutipan chunk relevan yang ingin diambil (default: 3)' },
+          },
+          required: ['query'],
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -535,6 +549,25 @@ export class PPTAgent implements IAgent {
           };
         }
         return { success: false, error: 'Driver PowerPoint tidak mendukung insertProcessFlowchart.' };
+      }
+
+      if (toolCall.name === 'search_reference_knowledge') {
+        const { query, maxResults = 3 } = toolCall.arguments || {};
+        if (!query) {
+          return { success: false, error: 'Query pencarian referensi wajib diisi.' };
+        }
+        const results = queryKnowledge(query, { maxResults: Number(maxResults) || 3 });
+        if (results.length === 0) {
+          return {
+            success: true,
+            result: `Tidak ditemukan kutipan yang relevan dari berkas referensi untuk kata kunci: "${query}".`,
+          };
+        }
+        let formattedText = `📖 **Hasil Temuan Berkas Referensi:**\n\n`;
+        results.forEach((r, idx) => {
+          formattedText += `[${idx + 1}] **Sumber ${r.sourceCitation}** (Skor relevansi: ${r.score.toFixed(2)}):\n> "${r.snippet}"\n\n`;
+        });
+        return { success: true, result: formattedText.trim() };
       }
 
       return { success: false, error: 'Tool tidak ditemukan.' };
