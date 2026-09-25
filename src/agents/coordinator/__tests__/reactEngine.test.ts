@@ -219,4 +219,42 @@ describe('ReActExecutionEngine', () => {
     expect(stepProgressCalls[0].step).toBe(1);
     expect(stepProgressCalls[0].maxSteps).toBe(6);
   });
+
+  it('aborts loop immediately when AbortSignal is triggered', async () => {
+    const controller = new AbortController();
+    const mockProvider: ILLMProvider = {
+      id: 'mock',
+      name: 'Mock',
+      testConnection: async () => ({ success: true, message: 'OK' }),
+      sendMessage: async function* () {
+        yield { type: 'content_delta', delta: 'Kata pertama ' };
+        controller.abort();
+        yield { type: 'content_delta', delta: 'Kata kedua yang seharusnya tidak muncul' };
+      },
+    };
+
+    const mockSpecialist: IAgent = {
+      id: 'test',
+      name: 'Test',
+      hostType: 'Excel',
+      getSystemPrompt: () => 'Prompt',
+      getTools: () => [],
+      executeTool: async () => ({ success: true }),
+    };
+
+    const engine = new ReActExecutionEngine();
+    const result = await engine.runLoop({
+      provider: mockProvider,
+      providerConfig: { id: 'openai', name: 'OpenAI', apiKey: 'k', selectedModel: 'gpt-4o', enabled: true },
+      specialist: mockSpecialist,
+      initialMessages: [{ id: '1', role: 'user', content: 'Halo', timestamp: 1 }],
+      systemPrompt: 'Sys',
+      abortSignal: controller.signal,
+    });
+
+    expect(result.completed).toBe(false);
+    expect(result.aborted).toBe(true);
+    expect(result.finalContent).toBe('Kata pertama ');
+  });
 });
+

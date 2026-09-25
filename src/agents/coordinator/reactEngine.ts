@@ -16,10 +16,12 @@ export interface ReActParams {
   systemPrompt: string;
   context?: AgentContext;
   maxIterations?: number;
+  abortSignal?: AbortSignal;
 }
 
 export interface ReActRunResult {
   completed: boolean;
+  aborted?: boolean;
   iterations: number;
   finalContent: string;
   allMessages: ChatMessage[];
@@ -34,6 +36,16 @@ export class ReActExecutionEngine {
     const tools = params.specialist.getTools();
 
     while (iterations < maxIterations) {
+      if (params.abortSignal?.aborted) {
+        return {
+          completed: false,
+          aborted: true,
+          iterations,
+          finalContent,
+          allMessages: conversation,
+        };
+      }
+
       iterations++;
       callbacks?.onStepProgress?.(iterations, maxIterations, `Iterasi [${iterations}/${maxIterations}]...`);
 
@@ -56,6 +68,10 @@ export class ReActExecutionEngine {
       );
 
       for await (const chunk of stream) {
+        if (params.abortSignal?.aborted) {
+          break;
+        }
+
         if (chunk.type === 'content_delta' && chunk.delta) {
           assistantMsg.content += chunk.delta;
           callbacks?.onContentDelta?.(chunk.delta);
@@ -64,10 +80,24 @@ export class ReActExecutionEngine {
         } else if (chunk.type === 'error') {
           assistantMsg.content += `\n[Error: ${chunk.error}]`;
         }
+
+        if (params.abortSignal?.aborted) {
+          break;
+        }
       }
 
       conversation.push(assistantMsg);
       finalContent = assistantMsg.content;
+
+      if (params.abortSignal?.aborted) {
+        return {
+          completed: false,
+          aborted: true,
+          iterations,
+          finalContent,
+          allMessages: conversation,
+        };
+      }
 
       // If no tools were called, the agent has finished its turn
       if (!assistantMsg.toolCalls || assistantMsg.toolCalls.length === 0) {
@@ -81,6 +111,16 @@ export class ReActExecutionEngine {
 
       // Execute each tool call
       for (const toolCall of assistantMsg.toolCalls) {
+        if (params.abortSignal?.aborted) {
+          return {
+            completed: false,
+            aborted: true,
+            iterations,
+            finalContent,
+            allMessages: conversation,
+          };
+        }
+
         callbacks?.onStepProgress?.(iterations, maxIterations, `Mengeksekusi tool ${toolCall.name}...`);
         const context = params.context || { host: params.specialist.hostType };
         const execResult = await params.specialist.executeTool(toolCall, context);

@@ -367,6 +367,23 @@ describe('MessageBubble Component', () => {
     expect(html).toContain('Tentu, saya telah menyiapkan formula');
   });
 
+  it('renders rich markdown content including bold, headings, and tables', () => {
+    const mdMsg: ChatMessage = {
+      id: 'msg-md',
+      role: 'assistant',
+      content: '# Ringkasan Proyek\nBerikut data **rekapitulasi**:\n\n| Item | Nilai |\n|---|---|\n| Server | 10 Juta |',
+      timestamp: Date.now(),
+    };
+    const html = renderToString(<MessageBubble message={mdMsg} onApplyToolCall={() => {}} />);
+    expect(html).toContain('<h1');
+    expect(html).toContain('Ringkasan Proyek');
+    expect(html).toContain('<strong');
+    expect(html).toContain('rekapitulasi</strong>');
+    expect(html).toContain('<table');
+    expect(html).toContain('Server');
+    expect(html).toContain('10 Juta');
+  });
+
   it('renders embedded action cards when message has toolCalls', () => {
     const html = renderToString(
       <MessageBubble message={assistantMessage} onApplyToolCall={() => {}} />
@@ -509,6 +526,22 @@ describe('InputBar Component', () => {
       <InputBar onSendMessage={() => {}} placeholder="Tulis instruksi kustom..." />
     );
     expect(html).toContain('Tulis instruksi kustom...');
+  });
+
+  it('renders Stop button when isBusy and onStop are provided, and clicking it triggers onStop', () => {
+    const onStop = vi.fn();
+    const html = renderToString(
+      <InputBar onSendMessage={() => {}} onStop={onStop} isBusy={true} />
+    );
+    expect(html).toContain('Hentikan respons');
+    expect(html).toContain('bg-red-600');
+
+    const harness = createHookHarness(InputBar, { onSendMessage: () => {}, onStop, isBusy: true });
+    const vdom = harness.render();
+    const stopButton = findElement(vdom, el => el.type === 'button' && el.props['aria-label'] === 'Hentikan respons');
+    expect(stopButton).toBeDefined();
+    stopButton.props.onClick();
+    expect(onStop).toHaveBeenCalledTimes(1);
   });
 
   it('enables send button when text is entered and sends trimmed text on click', () => {

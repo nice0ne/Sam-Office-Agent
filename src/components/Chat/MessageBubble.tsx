@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChatMessage, ToolCall } from '../../types';
 import { ActionCard } from '../Actions/ActionCard';
 import { ActionConfirmationCard } from './ActionConfirmationCard';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { Bot, User, Copy, Check, Download, Wrench } from 'lucide-react';
 
 export interface MessageBubbleProps {
@@ -145,8 +146,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         ) : (
           <div className="flex items-start justify-between gap-2">
-            <div className="whitespace-pre-wrap leading-relaxed select-text cursor-text flex-1">
-              {displayText}
+            <div className="leading-relaxed select-text cursor-text flex-1">
+              {isTool ? (
+                <div className="whitespace-pre-wrap font-mono text-[11px]">{displayText}</div>
+              ) : (
+                <MarkdownRenderer
+                  content={displayText}
+                  className={
+                    isUser
+                      ? 'text-white [&_strong]:text-white [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-white [&_code]:bg-blue-700/60 [&_code]:text-white'
+                      : ''
+                  }
+                />
+              )}
             </div>
 
             {displayText && (

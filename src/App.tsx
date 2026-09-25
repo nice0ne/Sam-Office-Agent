@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Common/Header';
 import { ChatContainer } from './components/Chat/ChatContainer';
 import { InputBar } from './components/Chat/InputBar';
@@ -41,6 +41,7 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
   const [reactEngine] = useState(() => new ReActExecutionEngine());
   const [isBusy, setIsBusy] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(getStoredThemeMode);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -201,6 +202,27 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
     );
   };
 
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsBusy(false);
+    setMessages(prev => {
+      const copy = [...prev];
+      const last = copy[copy.length - 1];
+      if (last && last.role === 'assistant') {
+        const stopNote = last.content ? '\n\n*(Dihentikan oleh pengguna)*' : '*(Dihentikan oleh pengguna)*';
+        return copy.map((m, idx) =>
+          idx === copy.length - 1
+            ? { ...m, content: `${m.content}${stopNote}`, stepProgress: undefined }
+            : m
+        );
+      }
+      return copy;
+    });
+  };
+
   const handleSendMessage = async (
     text: string,
     options?: { displayText?: string; isContinuation?: boolean }
@@ -208,6 +230,9 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
     if (!text.trim() || (!options?.isContinuation && isBusy)) return;
 
     setIsBusy(true);
+    abortControllerRef.current = new AbortController();
+    const abortSignal = abortControllerRef.current.signal;
+
     const userMsg: ChatMessage = {
       id: `msg_${Date.now()}`,
       role: 'user',
@@ -298,6 +323,7 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
             systemPrompt,
             context: activeContext,
             maxIterations: 6,
+            abortSignal,
           },
           {
             onStepProgress: (step, maxSteps, description) => {
@@ -337,11 +363,17 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
           }
         );
 
+        if (abortSignal.aborted) {
+          return;
+        }
+
         // Update full message history with ReAct conversation
         setMessages(reactResult.allMessages);
       } catch (e: any) {
-        assistantMsg.content += `\n[Error: ${e.message}]`;
-        setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
+        if (!abortSignal.aborted) {
+          assistantMsg.content += `\n[Error: ${e.message}]`;
+          setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
+        }
       } finally {
         setIsBusy(false);
       }
@@ -362,6 +394,10 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
       );
 
       for await (const chunk of stream) {
+        if (abortSignal.aborted) {
+          break;
+        }
+
         if (chunk.type === 'content_delta' && chunk.delta) {
           assistantMsg.content += chunk.delta;
           setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
@@ -374,8 +410,10 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         }
       }
     } catch (e: any) {
-      assistantMsg.content += `\n[Error: ${e.message}]`;
-      setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
+      if (!abortSignal.aborted) {
+        assistantMsg.content += `\n[Error: ${e.message}]`;
+        setMessages(prev => prev.map(m => (m.id === assistantMsgId ? { ...assistantMsg } : m)));
+      }
     } finally {
       setIsBusy(false);
     }
@@ -405,7 +443,13 @@ export const App: React.FC<{ initialHost?: HostType }> = ({ initialHost = 'Excel
         onCancelAction={handleCancelAction}
       />
 
-      <InputBar onSendMessage={handleSendMessage} disabled={isBusy} host={host} />
+      <InputBar
+        onSendMessage={handleSendMessage}
+        onStop={handleStop}
+        isBusy={isBusy}
+        disabled={isBusy}
+        host={host}
+      />
 
       <SettingsModal
         isOpen={isSettingsOpen}

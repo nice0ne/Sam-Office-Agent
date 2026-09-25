@@ -1,5 +1,5 @@
 import React, { useState, KeyboardEvent, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Mic, MicOff, Paperclip, FileText, X } from 'lucide-react';
+import { Send, Sparkles, Loader2, Mic, MicOff, Paperclip, FileText, X, Square } from 'lucide-react';
 import { useSpeechRecognition, SpeechLanguage } from '../../hooks/useSpeechRecognition';
 import { QuickActionPresets } from './QuickActionPresets';
 import { addDocument, removeDocument, listDocuments } from '../../services/rag/ragEngine';
@@ -7,6 +7,8 @@ import { HostType } from '../../types';
 
 export interface InputBarProps {
   onSendMessage: (text: string) => void;
+  onStop?: () => void;
+  isBusy?: boolean;
   disabled?: boolean;
   placeholder?: string;
   host?: HostType;
@@ -14,6 +16,8 @@ export interface InputBarProps {
 
 export const InputBar: React.FC<InputBarProps> = ({
   onSendMessage,
+  onStop,
+  isBusy,
   disabled,
   placeholder = 'Tanya Sam atau perintahkan sesuatu...',
   host = 'Excel',
@@ -211,20 +215,32 @@ export const InputBar: React.FC<InputBarProps> = ({
           onChange={handleFileChange}
         />
 
-        {/* Send message button */}
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={Boolean(!input.trim() || disabled)}
-          aria-label="Kirim Pesan"
-          className="p-1 mb-0.5 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
-        >
-          {disabled ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
-          ) : (
-            <Send className="w-3.5 h-3.5" />
-          )}
-        </button>
+        {/* Send / Stop message button */}
+        {onStop && (isBusy || disabled) ? (
+          <button
+            type="button"
+            onClick={onStop}
+            title="Hentikan respons (Stop)"
+            aria-label="Hentikan respons"
+            className="p-1 mb-0.5 rounded-md bg-red-600 hover:bg-red-700 text-white shadow-xs transition shrink-0 flex items-center justify-center animate-pulse"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={Boolean(!input.trim() || disabled)}
+            aria-label="Kirim Pesan"
+            className="p-1 mb-0.5 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 disabled:opacity-40 transition shrink-0"
+          >
+            {disabled ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
