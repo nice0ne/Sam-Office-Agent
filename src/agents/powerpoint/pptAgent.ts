@@ -1,4 +1,4 @@
-import { getOfficeDriver } from '../../services/office';
+import { getOfficeDriver, buildSequoiaPitchDeck } from '../../services/office';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
 import { executeMetaOrCustomTool, getLearnedAndMetaTools } from '../metaTools';
@@ -45,12 +45,15 @@ export class PPTAgent implements IAgent {
       '4. TRANSFORMASI DOKUMEN KE SLIDE PRESENTASI (DOC-TO-DECK):\n' +
       '   - Gunakan tool "transform_doc_to_deck" untuk mengubah teks dokumen, proposal, memo, atau laporan menjadi rangkaian slide presentasi eksekutif terstruktur (Executive Storyline Arc).\n' +
       '   - Tool ini secara komprehensif menghasilkan naskah presenter (hook, poin elaborasi, transisi) untuk setiap slide.\n' +
-      '   - Jika documentText dikosongkan, tool akan otomatis mengambil teks dari dokumen aktif saat ini.\n' +
-      '5. VISUALISASI DIAGRAM ALUR PROSES (FLOWCHART):\n' +
+      '   - Tersedia 10 tema desain profesional kelas dunia (SlideSpeak standard): corporate_blue, emerald_executive, modern_dark, minimalist_clean, mckinsey_consulting, demo_day, linear_dark, stripe_saas, ted_stage, sequoia_pitch.\n' +
+      '5. VENTURE CAPITAL PITCH DECK BLUEPRINT (SEQUOIA CAPITAL FRAMEWORK):\n' +
+      '   - Jika pengguna meminta membuat slide pitch deck startup, pendanaan investor, atau business plan: gunakan tool "create_sequoia_pitch_deck".\n' +
+      '   - Tool ini otomatis menghasilkan rangkaian 10 slide resmi Sequoia Capital (Purpose, Problem, Solution, Why Now, Market Size, Competition, Product, Business Model, Team, Financials & Ask) lengkap dengan speaker script naskah pemateri untuk meyakinkan investor.\n' +
+      '6. VISUALISASI DIAGRAM ALUR PROSES (FLOWCHART):\n' +
       '   - Ketika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di PowerPoint, gunakan tool "insert_process_flowchart" untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke slide presentasi.\n' +
-      '6. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.\n' +
-      '7. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, tema warna, preferensi tata letak/format slide, atau direktif presentasi spesifik, proaktif panggil tool "learn_corporate_directive" untuk menyimpannya ke memori korporat.\n' +
-      '8. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan materi, fakta, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool "search_reference_knowledge" untuk mencari kutipan relevan sebelum menyusun slide presentasi.';
+      '7. Berikan penjelasan ringkas, terstruktur, dan ramah di chat mengenai topik slide yang telah Anda ringkas atau buatkan ke dalam presentasi.\n' +
+      '8. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, tema warna, preferensi tata letak/format slide, atau direktif presentasi spesifik, proaktif panggil tool "learn_corporate_directive" untuk menyimpannya ke memori korporat.\n' +
+      '9. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan materi, fakta, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool "search_reference_knowledge" untuk mencari kutipan relevan sebelum menyusun slide presentasi.';
   }
 
   getTools(): ToolDefinition[] {
@@ -153,8 +156,8 @@ export class PPTAgent implements IAgent {
             topic: { type: 'string', description: 'Topik utama presentasi' },
             theme: {
               type: 'string',
-              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
-              description: 'Tema warna visual presentasi',
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean', 'mckinsey_consulting', 'demo_day', 'linear_dark', 'stripe_saas', 'ted_stage', 'sequoia_pitch'],
+              description: 'Tema warna visual presentasi (SlideSpeak standards)',
             },
             slides: {
               type: 'array',
@@ -200,12 +203,37 @@ export class PPTAgent implements IAgent {
             targetSlideCount: { type: 'number', description: 'Target jumlah slide yang dihasilkan (default: 5).' },
             theme: {
               type: 'string',
-              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean', 'mckinsey_consulting', 'demo_day', 'linear_dark', 'stripe_saas', 'ted_stage', 'sequoia_pitch'],
               description: 'Tema desain visual presentasi korporat.',
             },
             presentationTitle: { type: 'string', description: 'Judul presentasi kustom (opsional).' },
             targetAudience: { type: 'string', enum: ['executive', 'technical', 'team_all_hands'], description: 'Target audiens presentasi (opsional).' },
           },
+        },
+      },
+      {
+        name: 'create_sequoia_pitch_deck',
+        description: 'Membuat 10 slide pitch deck standar modal ventura (Venture Capital) berdasar blueprint resmi Sequoia Capital (Purpose, Problem, Solution, Why Now, Market Size, Competition, Product, Business Model, Team, Financials) lengkap dengan Speaker Notes.',
+        parameters: {
+          type: 'object',
+          properties: {
+            companyName: { type: 'string', description: 'Nama startup atau inisiatif produk' },
+            oneLiner: { type: 'string', description: 'Deskripsi 1 kalimat misi perusahaan' },
+            problem: { type: 'string', description: 'Masalah utama yang diselesaikan di pasar' },
+            solution: { type: 'string', description: 'Solusi unik dan value proposition' },
+            targetMarket: { type: 'string', description: 'Potensi pasar atau TAM' },
+            competition: { type: 'string', description: 'Lanskap kompetisi & moat' },
+            businessModel: { type: 'string', description: 'Model monetisasi & unit economics' },
+            teamHighlight: { type: 'string', description: 'Kekuatan dan rekam jejak tim pendiri' },
+            financialMilestone: { type: 'string', description: 'Target keuangan / ARR' },
+            fundraiseAsk: { type: 'string', description: 'Kebutuhan dan alokasi pendanaan' },
+            theme: {
+              type: 'string',
+              enum: ['sequoia_pitch', 'demo_day', 'stripe_saas', 'linear_dark', 'mckinsey_consulting'],
+              description: 'Tema visual presentasi (default: sequoia_pitch)',
+            },
+          },
+          required: ['companyName', 'oneLiner', 'problem', 'solution'],
         },
       },
       {
@@ -217,7 +245,7 @@ export class PPTAgent implements IAgent {
             snapshotId: { type: 'string', description: 'ID snapshot tertentu (opsional). Jika tidak disertakan, mengambil snapshot terbaru dari aplikasi lain.' },
             theme: {
               type: 'string',
-              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean', 'mckinsey_consulting', 'demo_day', 'linear_dark', 'stripe_saas', 'ted_stage', 'sequoia_pitch'],
               description: 'Tema desain visual presentasi.',
             },
             targetSlideCount: { type: 'number', description: 'Target jumlah slide yang dihasilkan (default: 5).' },
@@ -422,6 +450,91 @@ export class PPTAgent implements IAgent {
           return { success: true, result: output.trim() };
         }
         return { success: false, error: 'Driver PowerPoint tidak mendukung transformDocToDeck.' };
+      }
+
+      if (toolCall.name === 'create_sequoia_pitch_deck') {
+        const {
+          companyName,
+          oneLiner,
+          problem,
+          solution,
+          targetMarket,
+          competition,
+          businessModel,
+          teamHighlight,
+          financialMilestone,
+          fundraiseAsk,
+          theme,
+        } = toolCall.arguments || {};
+
+        if (!companyName || !oneLiner || !problem || !solution) {
+          return { success: false, error: 'companyName, oneLiner, problem, dan solution wajib diisi.' };
+        }
+
+        const slides = buildSequoiaPitchDeck({
+          companyName,
+          oneLiner,
+          problem,
+          solution,
+          targetMarket,
+          competition,
+          businessModel,
+          teamHighlight,
+          financialMilestone,
+          fundraiseAsk,
+        });
+
+        const chosenTheme = theme || 'sequoia_pitch';
+
+        if (driver.generateThemedDeck) {
+          await driver.generateThemedDeck({
+            topic: `Sequoia Pitch Deck: ${companyName}`,
+            theme: chosenTheme,
+            slides: slides.map((s) => ({
+              title: s.title,
+              content: s.bullets,
+              notes: s.speakerScript
+                ? `${s.speakerScript.hook}\n\n${s.speakerScript.keyTalkingPoints.join('\n')}\n\n${s.speakerScript.transition}`
+                : '',
+              layout:
+                s.category === 'cover'
+                  ? 'title_cover'
+                  : s.category === 'metrics'
+                  ? 'metric_highlights'
+                  : 'bullet_points',
+            })),
+          });
+        } else if (driver.createPresentationDeck) {
+          await driver.createPresentationDeck(
+            slides.map((s) => ({
+              title: s.title,
+              bullets: s.bullets,
+              notes: s.speakerScript
+                ? `${s.speakerScript.hook}\n\n${s.speakerScript.keyTalkingPoints.join('\n')}\n\n${s.speakerScript.transition}`
+                : '',
+              layout: s.category === 'cover' ? 'TitleOnly' : 'TitleAndContent',
+            }))
+          );
+        }
+
+        let output = `### 🚀 Sequoia Capital 10-Slide Pitch Deck Berhasil Dibuat: ${companyName}\n`;
+        output += `Tema: **${chosenTheme}** | Framework: **Sequoia Capital Canonical Blueprint (10 Slides)**\n\n`;
+
+        const slideCards = slides.map((slide, idx) => {
+          const bulletsStr = slide.bullets.map((b) => `  - ${b}`).join('\n');
+          const talkingPoints = slide.speakerScript.keyTalkingPoints.map((tp) => `    * ${tp}`).join('\n');
+          return (
+            `#### Slide ${idx + 1}: ${slide.title}\n` +
+            `*Poin Materi:*\n${bulletsStr}\n\n` +
+            `🎙️ **Naskah Investor (Speaker Notes)**:\n` +
+            `- **Hook:** "${slide.speakerScript.hook}"\n` +
+            `- **Elaborasi:**\n${talkingPoints}\n` +
+            `- **Transisi:** "${slide.speakerScript.transition}"`
+          );
+        });
+
+        output += slideCards.join('\n\n---\n\n');
+        return { success: true, result: output.trim() };
       }
 
       if (toolCall.name === 'import_from_cross_app_hub') {

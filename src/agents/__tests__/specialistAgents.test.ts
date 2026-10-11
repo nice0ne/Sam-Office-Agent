@@ -826,5 +826,34 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(res.result).toContain('Pembuka');
       expect(res.result).toContain('Transisi');
     });
+
+    it('creates 10-slide Sequoia Capital pitch deck using create_sequoia_pitch_deck tool', async () => {
+      const mockDriver = new MockOfficeDriver();
+      const testAgent = new PPTAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'create_sequoia_pitch_deck')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        {
+          id: 'ppt-seq-1',
+          name: 'create_sequoia_pitch_deck',
+          arguments: {
+            companyName: 'Nusantara AI Cloud',
+            oneLiner: 'Infrastruktur AI berdaulat untuk Indonesia',
+            problem: 'Biaya komputasi luar negeri tinggi dan regulasi kepatuhan data',
+            solution: 'Cloud GPU lokal dengan keamanan tingkat perbankan',
+            theme: 'sequoia_pitch',
+          },
+          status: 'pending',
+        },
+        { host: 'PowerPoint' }
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Sequoia Capital 10-Slide Pitch Deck');
+      expect(res.result).toContain('Nusantara AI Cloud');
+      expect(res.result).toContain('Slide 10');
+      expect(res.result).toContain('Naskah Investor');
+    });
   });
 });
