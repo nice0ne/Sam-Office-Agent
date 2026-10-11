@@ -40,6 +40,7 @@ export interface IDocumentDriver {
   polishDocumentText?(options: PolishTextOptions): Promise<{ success: boolean; polishedText: string }>;
   reviewComplianceClauses?(options?: ComplianceReviewOptions): Promise<ComplianceReviewResult>;
   applyCorporateStyle?(options?: CorporateStyleOptions): Promise<CorporateStyleResult>;
+  executeMailMerge?(options: MailMergeOptions): Promise<MailMergeResult>;
   // PowerPoint operations
   getSlideContext(): Promise<{
     slideNumber: number;
@@ -331,3 +332,19 @@ export interface ReconcileSummary {
   markdownSummary: string;
 }
 
+export interface MailMergeOptions {
+  templateText: string;
+  tableData?: {
+    headers: string[];
+    rows: (string | number)[][];
+  };
+  sourceSheetName?: string;
+  recipientColumnName?: string;
+}
+
+export interface MailMergeResult {
+  totalRecordsProcessed: number;
+  totalPagesCreated: number;
+  recipientNames: string[];
+  summaryMessage: string;
+}

@@ -45,3 +45,4 @@ export * from './wordDriver';
 export * from './pptDriver';
 export * from './administrativeDocTemplates';
 export * from './dataReconciler';
+export * from './mailMergeEngine';
