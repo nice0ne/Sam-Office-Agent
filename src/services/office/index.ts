@@ -46,3 +46,4 @@ export * from './pptDriver';
 export * from './administrativeDocTemplates';
 export * from './dataReconciler';
 export * from './mailMergeEngine';
+export * from './executivePipeline';

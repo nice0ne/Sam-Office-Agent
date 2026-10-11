@@ -64,6 +64,7 @@ export interface IDocumentDriver {
   generateThemedDeck?(options: ThemedDeckOptions): Promise<{ success: boolean; createdCount: number }>;
   transformDocToDeck?(options?: DocToDeckOptions): Promise<DocToDeckResult>;
   insertProcessFlowchart?(options: InsertFlowchartOptions): Promise<DiagramResult>;
+  generateExecutivePipeline?(options: ExecutiveReportPipelineOptions): Promise<ExecutiveReportPipelineResult>;
 }
 
 export interface CleanDataOptions {
@@ -346,5 +347,34 @@ export interface MailMergeResult {
   totalRecordsProcessed: number;
   totalPagesCreated: number;
   recipientNames: string[];
+  summaryMessage: string;
+}
+
+export interface ExecutiveReportPipelineOptions {
+  title: string;
+  topic?: string;
+  tableData?: {
+    headers: string[];
+    rows: (string | number)[][];
+  };
+  metrics?: Array<{ label: string; value: string | number; trend?: 'up' | 'down' | 'neutral' }>;
+  targetSlideCount?: number;
+  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  executiveSummary?: string;
+}
+
+export interface ExecutiveReportPipelineResult {
+  title: string;
+  wordDocument: {
+    title: string;
+    sectionsCount: number;
+    formattedNarrative: string;
+  };
+  powerPointDeck: {
+    deckTitle: string;
+    totalSlides: number;
+    slides: DocToDeckSlide[];
+  };
+  hubSnapshotId: string;
   summaryMessage: string;
 }
