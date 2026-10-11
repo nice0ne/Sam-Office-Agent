@@ -85,15 +85,23 @@ export interface ConditionalFormattingOptions {
   thresholdValue?: number;
 }
 
+export type StructuredDocType = 'SOP' | 'MoM' | 'SPK' | 'PRD' | 'FormalMemo' | 'OfficialLetter' | 'BAST' | 'ExecutiveMoM' | 'NotaDinas';
+
+export interface StructuredDocSection {
+  heading: string;
+  content?: string;
+  bullets?: string[];
+  table?: {
+    headers: string[];
+    rows: string[][];
+    borderless?: boolean;
+  };
+}
+
 export interface StructuredDocOptions {
-  templateType: 'SOP' | 'MoM' | 'SPK' | 'PRD' | 'FormalMemo';
+  templateType: StructuredDocType;
   title: string;
-  sections: Array<{
-    heading: string;
-    content?: string;
-    bullets?: string[];
-    table?: { headers: string[]; rows: string[][] };
-  }>;
+  sections: StructuredDocSection[];
   author?: string;
 }
 
