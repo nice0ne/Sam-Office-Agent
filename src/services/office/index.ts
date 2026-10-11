@@ -44,3 +44,4 @@ export * from './excelDriver';
 export * from './wordDriver';
 export * from './pptDriver';
 export * from './administrativeDocTemplates';
+export * from './dataReconciler';

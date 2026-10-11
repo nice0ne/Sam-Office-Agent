@@ -26,6 +26,7 @@ export interface IDocumentDriver {
   applyConditionalFormatting?(options: ConditionalFormattingOptions): Promise<{ success: boolean; rule: string }>;
   auditSheetData?(options?: { range?: string }): Promise<SheetAuditResult>;
   generateDataStory?(options?: DataStoryOptions): Promise<DataStoryResult>;
+  reconcileData?(options?: ReconcileOptions): Promise<ReconcileSummary>;
   // Word operations
   getWordOutline(): Promise<string>;
   getWordContext?(): Promise<{ bodyText: string; selectedText: string }>;
@@ -287,5 +288,46 @@ export interface DiagramResult {
   appliedTheme: string;
   base64Png: string;
   inserted: boolean;
+}
+
+export interface ReconcileOptions {
+  rangeA?: string;
+  rangeB?: string;
+  keyColumnA?: string | number;
+  keyColumnB?: string | number;
+  amountColumnA?: string | number;
+  amountColumnB?: string | number;
+  tolerance?: number;
+  outputSheetName?: string;
+}
+
+export interface ReconcileItemDiscrepancy {
+  key: string;
+  descriptionA?: string;
+  descriptionB?: string;
+  amountA: number;
+  amountB: number;
+  diff: number;
+}
+
+export interface ReconcileItemUnmatched {
+  key: string;
+  description?: string;
+  amount: number;
+  source: 'A' | 'B';
+}
+
+export interface ReconcileSummary {
+  totalRowsA: number;
+  totalRowsB: number;
+  matchedCount: number;
+  matchedTotalAmount: number;
+  discrepancyCount: number;
+  netDiscrepancyAmount: number;
+  unmatchedCountA: number;
+  unmatchedCountB: number;
+  discrepancies: ReconcileItemDiscrepancy[];
+  unmatchedItems: ReconcileItemUnmatched[];
+  markdownSummary: string;
 }
 
