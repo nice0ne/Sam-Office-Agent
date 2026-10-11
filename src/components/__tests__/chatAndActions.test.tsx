@@ -1087,13 +1087,20 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(10);
+    expect(buttons.length).toBe(13);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
     deckButton.props.onClick();
     expect(onSelectPreset).toHaveBeenCalledWith(
       'Buatkan 3 slide presentasi terstruktur: Slide 1 Judul Cover, Slide 2 Poin Materi Utama, Slide 3 Key Metrics Capaian.'
+    );
+
+    const sequoiaBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Sequoia Pitch Deck'));
+    expect(sequoiaBtn).toBeDefined();
+    sequoiaBtn.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Buatkan 10 slide pitch deck standar modal ventura (Venture Capital) mengikuti blueprint resmi Sequoia Capital lengkap dengan alur problem-solution-TAM-financials dan naskah speaker notes untuk meyakinkan investor.'
     );
 
     const pptHubBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Slide dari Hub'));
@@ -1110,6 +1117,9 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Dokumen ke Slide');
     expect(html).toContain('Executive Report Pipeline');
     expect(html).toContain('Buat Slide dari Hub');
+    expect(html).toContain('Sequoia Pitch Deck');
+    expect(html).toContain('Deck ala McKinsey');
+    expect(html).toContain('Tema Linear Dark');
   });
 
   it('renders ppt_doc_to_deck preset in PowerPoint host mode', () => {

@@ -178,6 +178,21 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📐 Sisipkan Slide Flowchart Alur',
       prompt: 'Buatkan 1 slide visual khusus diagram alur proses (flowchart) bisnis dengan tema profesional dan naskah penjelasan pemateri.',
     },
+    {
+      id: 'ppt_sequoia_pitch',
+      label: '🚀 Sequoia Pitch Deck (10 Slide)',
+      prompt: 'Buatkan 10 slide pitch deck standar modal ventura (Venture Capital) mengikuti blueprint resmi Sequoia Capital lengkap dengan alur problem-solution-TAM-financials dan naskah speaker notes untuk meyakinkan investor.',
+    },
+    {
+      id: 'ppt_mckinsey_deck',
+      label: '💼 Deck ala McKinsey',
+      prompt: 'Buatkan slide presentasi strategi bisnis menggunakan gaya McKinsey (mckinsey_consulting): terapkan Action Titles berupa kalimat kesimpulan di setiap slide, deep navy theme, dan layout data pendukung yang tajam.',
+    },
+    {
+      id: 'ppt_linear_dark',
+      label: '⚡ Tema Linear Dark',
+      prompt: 'Buatkan slide presentasi modern teknologi dengan tema Linear Dark (linear_dark): latar gelap #08090A, aksen violet, dan kartu metrik produk yang elegan.',
+    },
     UNIVERSAL_EXECUTIVE_PIPELINE_PRESET,
     UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
