@@ -446,6 +446,54 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(res.result).toContain('SOP Pengajuan Cuti');
     });
 
+    it('executes generate_structured_doc with OfficialLetter in WordAgent', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'w-official-letter',
+          name: 'generate_structured_doc',
+          arguments: {
+            templateType: 'OfficialLetter',
+            institutionName: 'PT INOVASI TEKNOLOGI NUSANTARA',
+            letterNumber: '042/DIR-OPS/X/2026',
+            subject: 'Undangan Rapat Koordinasi',
+            recipient: { title: 'Kepala Dinas PUPR', address: 'di Tempat' },
+            bodyParagraphs: ['Dengan ini kami sampaikan undangan koordinasi sistem.'],
+            signatory: { name: 'Bambang Sudarsono', title: 'Direktur' },
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('OfficialLetter');
+      expect(res.result).toContain('PT INOVASI TEKNOLOGI NUSANTARA');
+    });
+
+    it('executes generate_structured_doc with BAST in WordAgent', async () => {
+      const res = await agent.executeTool(
+        {
+          id: 'w-bast',
+          name: 'generate_structured_doc',
+          arguments: {
+            templateType: 'BAST',
+            documentNumber: '015/BAST/X/2026',
+            firstParty: { name: 'Agus', title: 'Lead', company: 'PT Alpha' },
+            secondParty: { name: 'Budi', title: 'Manager', company: 'PT Beta' },
+            handoverItems: {
+              headers: ['No', 'Item', 'Qty'],
+              rows: [['1', 'Laptop ThinkPad', '5 Unit']],
+            },
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('BAST');
+    });
+
     it('fails generate_structured_doc when required arguments are missing', async () => {
       const res = await agent.executeTool(
         {

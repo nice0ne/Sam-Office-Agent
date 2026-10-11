@@ -1,4 +1,4 @@
-import { getOfficeDriver } from '../../services/office';
+import { getOfficeDriver, buildAdministrativeDoc, StructuredDocOptions, StructuredDocType } from '../../services/office';
 import { renderChartToBase64Png } from '../../utils/chartRenderer';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
@@ -39,7 +39,12 @@ PANDUAN ALUR KERJA:
 7. Jika pengguna meminta merapikan format dokumen, brand korporat, atau standarisasi heading/font: gunakan tool \`apply_corporate_style\`.
 8. Jika pengguna meminta dibuatkan diagram alur, flowchart, SOP, atau visualisasi alur kerja di Word: gunakan tool \`insert_process_flowchart\` untuk menghasilkan diagram visual profesional dan langsung menyisipkannya ke dokumen.
 9. PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah/istilah resmi, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.
-10. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan fakta, angka, klausul, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis atau memperbarui dokumen.`;
+10. PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan fakta, angka, klausul, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis atau memperbarui dokumen.
+11. PANDUAN NASKAH DINAS & ADMINISTRASI RESMI INDONESIA:
+    Jika pengguna meminta membuat Surat Keluar Resmi, Surat Dinas, BAST (Berita Acara Serah Terima), Notulen Rapat Eksekutif (MoM), atau Nota Dinas Internal:
+    Gunakan tool \`generate_structured_doc\` dengan templateType: 'OfficialLetter', 'BAST', 'ExecutiveMoM', atau 'NotaDinas'.
+    Gunakan format penanggalan baku bahasa Indonesia (misal: "20 Oktober 2026").
+    Sertakan nomor surat, perihal, rincian pihak/agenda, serta blok tanda tangan yang lengkap.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -120,20 +125,83 @@ PANDUAN ALUR KERJA:
       },
       {
         name: 'generate_structured_doc',
-        description: 'Menghasilkan dokumen resmi berformat terstruktur (SOP, MoM/Notulen, SPK, PRD, atau FormalMemo) lengkap dengan judul, metadata, dan bagian-bagian dokumen.',
+        description: 'Menghasilkan dokumen resmi berformat terstruktur (SOP, MoM, SPK, PRD, FormalMemo, Surat Dinas Resmi/OfficialLetter, BAST, ExecutiveMoM, NotaDinas) lengkap dengan judul, metadata, dan bagian dokumen.',
         parameters: {
           type: 'object',
           properties: {
             templateType: {
               type: 'string',
-              enum: ['SOP', 'MoM', 'SPK', 'PRD', 'FormalMemo'],
+              enum: ['SOP', 'MoM', 'SPK', 'PRD', 'FormalMemo', 'OfficialLetter', 'BAST', 'ExecutiveMoM', 'NotaDinas'],
               description: 'Tipe template dokumen',
             },
-            title: { type: 'string', description: 'Judul dokumen' },
+            title: { type: 'string', description: 'Judul dokumen (opsional jika menggunakan naskah dinas otomatis)' },
             author: { type: 'string', description: 'Nama penyusun dokumen (opsional)' },
+            institutionName: { type: 'string', description: 'Nama instansi/perusahaan untuk OfficialLetter/Surat Dinas' },
+            institutionAddress: { type: 'string', description: 'Alamat lengkap instansi untuk Kop Surat' },
+            letterNumber: { type: 'string', description: 'Nomor surat resmi, misal: "042/DIR-OPS/X/2026"' },
+            date: { type: 'string', description: 'Tanggal surat dalam bahasa Indonesia atau ISO, misal: "20 Oktober 2026"' },
+            subject: { type: 'string', description: 'Perihal surat resmi atau memo dinas' },
+            recipient: {
+              type: 'object',
+              description: 'Penerima surat resmi (title dan address)',
+              properties: {
+                title: { type: 'string' },
+                address: { type: 'string' },
+              },
+            },
+            bodyParagraphs: { type: 'array', items: { type: 'string' }, description: 'Daftar paragraf isi surat atau arahan' },
+            signatory: {
+              type: 'object',
+              description: 'Penandatangan surat resmi atau memo',
+              properties: {
+                name: { type: 'string' },
+                title: { type: 'string' },
+                nipOrNik: { type: 'string' },
+              },
+            },
+            firstParty: {
+              type: 'object',
+              description: 'Pihak Pertama pada BAST (Menyerahkan)',
+              properties: {
+                name: { type: 'string' },
+                title: { type: 'string' },
+                company: { type: 'string' },
+              },
+            },
+            secondParty: {
+              type: 'object',
+              description: 'Pihak Kedua pada BAST (Menerima)',
+              properties: {
+                name: { type: 'string' },
+                title: { type: 'string' },
+                company: { type: 'string' },
+              },
+            },
+            handoverItems: {
+              type: 'object',
+              description: 'Tabel rincian barang/pekerjaan yang diserahterimakan pada BAST',
+              properties: {
+                headers: { type: 'array', items: { type: 'string' } },
+                rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+              },
+            },
+            actionItems: {
+              type: 'array',
+              description: 'Daftar tindak lanjut untuk ExecutiveMoM (task, pic, deadline, status)',
+              items: {
+                type: 'object',
+                properties: {
+                  task: { type: 'string' },
+                  pic: { type: 'string' },
+                  deadline: { type: 'string' },
+                  status: { type: 'string' },
+                },
+              },
+            },
+            copiesTo: { type: 'array', items: { type: 'string' }, description: 'Daftar tembusan surat' },
             sections: {
               type: 'array',
-              description: 'Bagian-bagian dokumen',
+              description: 'Bagian-bagian dokumen kustom jika tidak menggunakan builder otomatis',
               items: {
                 type: 'object',
                 properties: {
@@ -152,7 +220,7 @@ PANDUAN ALUR KERJA:
               },
             },
           },
-          required: ['templateType', 'title', 'sections'],
+          required: ['templateType'],
         },
       },
       {
@@ -386,15 +454,34 @@ PANDUAN ALUR KERJA:
         return { success: true, result: `Teks "${findText}" diganti.` };
       }
       if (toolCall.name === 'generate_structured_doc') {
-        const { templateType, title, sections, author } = toolCall.arguments || {};
-        if (!templateType || !title || !Array.isArray(sections)) {
-          return { success: false, error: 'templateType, title, dan sections wajib diisi.' };
+        const { templateType, title, sections, author, ...restProps } = toolCall.arguments || {};
+        if (!templateType) {
+          return { success: false, error: 'templateType wajib diisi.' };
         }
+
+        let docOptions: StructuredDocOptions;
+        const isAdministrative = ['OfficialLetter', 'BAST', 'ExecutiveMoM', 'NotaDinas'].includes(templateType);
+
+        if (isAdministrative && (!sections || !Array.isArray(sections) || sections.length === 0)) {
+          docOptions = buildAdministrativeDoc(templateType as any, {
+            ...restProps,
+            institutionName: restProps.institutionName || title,
+            meetingTitle: title,
+            subject: restProps.subject || title,
+            documentNumber: restProps.documentNumber || restProps.letterNumber || title,
+          });
+        } else {
+          if (!title || !Array.isArray(sections)) {
+            return { success: false, error: 'templateType, title, dan sections wajib diisi.' };
+          }
+          docOptions = { templateType: templateType as StructuredDocType, title, sections, author };
+        }
+
         if (driver.generateStructuredDoc) {
-          const res = await driver.generateStructuredDoc({ templateType, title, sections, author });
+          const res = await driver.generateStructuredDoc(docOptions);
           return { success: true, result: res.message };
         }
-        return { success: true, result: `Dokumen ${templateType} "${title}" berhasil dibuat.` };
+        return { success: true, result: `Dokumen ${docOptions.templateType} "${docOptions.title}" berhasil dibuat.` };
       }
       if (toolCall.name === 'polish_document_text') {
         const { scope, tone, instruction, customText } = toolCall.arguments || {};
