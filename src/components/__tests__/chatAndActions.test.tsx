@@ -943,7 +943,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(9);
+    expect(buttons.length).toBe(10);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -956,6 +956,7 @@ describe('QuickActionPresets Component', () => {
     const html = renderToString(<QuickActionPresets host="Excel" onSelectPreset={onSelectPreset} />);
     expect(html).toContain('Bersihkan Data');
     expect(html).toContain('Rekap &amp; Chart');
+    expect(html).toContain('Rekonsiliasi Kas &amp; Data');
     expect(html).toContain('Format &amp; Color Scale');
     expect(html).toContain('Bagikan ke Hub');
   });

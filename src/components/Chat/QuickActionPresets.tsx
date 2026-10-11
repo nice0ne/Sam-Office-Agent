@@ -38,6 +38,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       prompt: 'Buatkan ringkasan data tabel ini ke kolom kosong di sebelah kanan dan buatkan grafik visualisasinya.',
     },
     {
+      id: 'excel_reconcile',
+      label: '⚖️ Rekonsiliasi Kas & Data',
+      prompt: 'Rekonsiliasi dan cocokkan data pada tabel ini: cari selisih nominal transaksi dan data yang belum tercatat, lalu buatkan lembar kerja Hasil_Rekonsiliasi.',
+    },
+    {
       id: 'excel_format_color',
       label: '🎨 Format & Color Scale',
       prompt: 'Terapkan format tebal pada baris header dan terapkan conditional formatting color scale pada kolom angka.',
