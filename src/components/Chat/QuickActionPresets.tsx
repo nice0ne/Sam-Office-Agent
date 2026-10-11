@@ -25,6 +25,12 @@ export const UNIVERSAL_RAG_PRESET: QuickPresetItem = {
   prompt: 'Analisis informasi dan poin-poin penting dari berkas referensi yang saya lampirkan, lalu simpulkan intisarinya ke dalam dokumen ini.',
 };
 
+export const UNIVERSAL_EXECUTIVE_PIPELINE_PRESET: QuickPresetItem = {
+  id: 'universal_executive_pipeline',
+  label: '🚀 1-Click Executive Report Pipeline',
+  prompt: 'Jalankan 1-Click Executive Reporting Pipeline: analisis data tabel ini, buatkan draf dokumen narasi laporan Word lengkap, dan susun slide presentasi PowerPoint eksekutif siap pakai.',
+};
+
 export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
   Excel: [
     {
@@ -67,6 +73,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🌐 Riset Web & Buat Tabel',
       prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
     },
+    UNIVERSAL_EXECUTIVE_PIPELINE_PRESET,
     UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
@@ -131,6 +138,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📐 Buat Diagram Alur (Flowchart)',
       prompt: 'Buat diagram alur proses visual (flowchart) profesional berdasarkan SOP atau proses kerja dalam dokumen ini, lalu sisipkan langsung ke naskah.',
     },
+    UNIVERSAL_EXECUTIVE_PIPELINE_PRESET,
     UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
@@ -170,6 +178,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '📐 Sisipkan Slide Flowchart Alur',
       prompt: 'Buatkan 1 slide visual khusus diagram alur proses (flowchart) bisnis dengan tema profesional dan naskah penjelasan pemateri.',
     },
+    UNIVERSAL_EXECUTIVE_PIPELINE_PRESET,
     UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],
@@ -209,6 +218,7 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       label: '🌐 Riset Web & Buat Tabel',
       prompt: 'Cari data kurs valuta asing terkini (USD, EUR, SGD, JPY ke Rupiah) di internet lalu buatkan tabel komparasinya di lembar kerja aktif.',
     },
+    UNIVERSAL_EXECUTIVE_PIPELINE_PRESET,
     UNIVERSAL_RAG_PRESET,
     UNIVERSAL_LEARN_SOUL_PRESET,
   ],

@@ -943,7 +943,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(10);
+    expect(buttons.length).toBe(11);
 
     const cleanButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Bersihkan Data'));
     expect(cleanButton).toBeDefined();
@@ -958,6 +958,7 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Rekap &amp; Chart');
     expect(html).toContain('Rekonsiliasi Kas &amp; Data');
     expect(html).toContain('Format &amp; Color Scale');
+    expect(html).toContain('Executive Report Pipeline');
     expect(html).toContain('Bagikan ke Hub');
   });
 
@@ -1010,7 +1011,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(14);
+    expect(buttons.length).toBe(15);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -1034,6 +1035,7 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Poles Bahasa &amp; EYD');
     expect(html).toContain('Impor Data dari Excel Hub');
     expect(html).toContain('Mail Merge (Dari Excel Hub)');
+    expect(html).toContain('Executive Report Pipeline');
   });
 
   it('renders new Word presets for Review Kontrak, Format Brand Korporat, and Hub Import', () => {
@@ -1085,7 +1087,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(9);
+    expect(buttons.length).toBe(10);
 
     const deckButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Buat Deck 3 Slide'));
     expect(deckButton).toBeDefined();
@@ -1106,6 +1108,7 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Ringkas Seluruh Slide');
     expect(html).toContain('Catatan Pemateri');
     expect(html).toContain('Dokumen ke Slide');
+    expect(html).toContain('Executive Report Pipeline');
     expect(html).toContain('Buat Slide dari Hub');
   });
 
