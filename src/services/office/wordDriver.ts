@@ -105,13 +105,16 @@ export class WordDriver implements Partial<IDocumentDriver> {
       const titlePara = body.insertParagraph(options.title, Word.InsertLocation.end);
       titlePara.style = 'Heading 1';
 
-      // 2. Template badge & metadata
-      const authorPart = options.author ? ` | Penyusun: ${options.author}` : '';
-      const datePart = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
-      const metaText = `[Template: ${options.templateType}]${authorPart} | Tanggal: ${datePart}`;
-      const metaPara = body.insertParagraph(metaText, Word.InsertLocation.end);
-      metaPara.font.italic = true;
-      metaPara.font.color = '#64748B';
+      // 2. Template badge & metadata (hanya untuk SOP, PRD, dsb; dilewati untuk naskah dinas formal)
+      const isOfficialDoc = ['OfficialLetter', 'BAST', 'NotaDinas'].includes(options.templateType);
+      if (!isOfficialDoc) {
+        const authorPart = options.author ? ` | Penyusun: ${options.author}` : '';
+        const datePart = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+        const metaText = `[Template: ${options.templateType}]${authorPart} | Tanggal: ${datePart}`;
+        const metaPara = body.insertParagraph(metaText, Word.InsertLocation.end);
+        metaPara.font.italic = true;
+        metaPara.font.color = '#64748B';
+      }
 
       // 3. Sections
       for (const section of options.sections) {
@@ -131,7 +134,11 @@ export class WordDriver implements Partial<IDocumentDriver> {
         if (section.table && section.table.headers && section.table.rows) {
           const tableData = [section.table.headers, ...section.table.rows];
           const table = body.insertTable(tableData.length, section.table.headers.length, Word.InsertLocation.end, tableData);
-          table.styleBuiltIn = Word.Style.gridTable4_Accent1;
+          if (section.table.borderless) {
+            table.styleBuiltIn = Word.Style.normalTable;
+          } else {
+            table.styleBuiltIn = Word.Style.gridTable4_Accent1;
+          }
         }
       }
 

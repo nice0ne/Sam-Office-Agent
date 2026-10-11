@@ -260,6 +260,7 @@ export class MockOfficeDriver implements IDocumentDriver {
   }
 
   async generateStructuredDoc(options: StructuredDocOptions): Promise<{ success: boolean; message: string }> {
+    this.wordContent.push(`# ${options.title}`);
     this.wordContent.push(`[${options.templateType}] ${options.title}`);
     for (const section of options.sections) {
       this.wordContent.push(`## ${section.heading}`);
@@ -268,7 +269,8 @@ export class MockOfficeDriver implements IDocumentDriver {
         this.wordContent.push(...section.bullets.map((b) => `• ${b}`));
       }
       if (section.table) {
-        this.wordContent.push(`[Tabel: ${section.table.headers.join(', ')}]`);
+        const borderlessTag = section.table.borderless ? ' (borderless)' : '';
+        this.wordContent.push(`[Tabel${borderlessTag}: ${section.table.headers.join(', ')}]`);
       }
     }
     return {

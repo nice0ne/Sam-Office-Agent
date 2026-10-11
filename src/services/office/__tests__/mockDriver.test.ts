@@ -191,6 +191,31 @@ Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
     expect(driver.diagrams.length).toBe(1);
     expect(driver.diagrams[0].title).toBe('SOP Cuti Karyawan');
   });
+
+  it('generates structured administrative document (OfficialLetter & BAST) with borderless tables', async () => {
+    const driver = new MockOfficeDriver();
+    const res = await driver.generateStructuredDoc!({
+      templateType: 'OfficialLetter',
+      title: 'SURAT DINAS - PT INOVASI NUSANTARA',
+      sections: [
+        { heading: 'KOP SURAT', content: 'PT INOVASI NUSANTARA\nJl. Sudirman No. 1' },
+        { heading: 'NOMOR & PERIHAL', content: 'Nomor: 001/DIR/X/2026' },
+        {
+          heading: 'PENANDATANGAN',
+          table: {
+            headers: ['', 'Penandatangan'],
+            rows: [['', 'Direktur Utama']],
+            borderless: true,
+          },
+        },
+      ],
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.message).toContain('OfficialLetter');
+    expect(driver.wordContent).toContain('# SURAT DINAS - PT INOVASI NUSANTARA');
+    expect(driver.wordContent.some(c => c.includes('borderless') || c.includes('Penandatangan'))).toBe(true);
+  });
 });
 
 describe('getOfficeDriver', () => {
