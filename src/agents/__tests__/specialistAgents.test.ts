@@ -303,6 +303,38 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(res.result).toContain('Laptops');
     });
 
+    it('executes reconcile_data tool and returns reconciliation summary', async () => {
+      const mockDriver = new MockOfficeDriver();
+      mockDriver.excelGrid['A1:C3'] = [
+        ['No. Ref', 'Item', 'Nominal'],
+        ['TRX-01', 'Server', '1000000'],
+        ['TRX-02', 'Domain', '500000'],
+      ];
+      mockDriver.excelGrid['E1:G3'] = [
+        ['ID Ref', 'Item', 'Total Bayar'],
+        ['TRX-01', 'Server AWS', '1000000'],
+        ['TRX-02', 'Domain Cloud', '450000'],
+      ];
+      const testAgent = new ExcelAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'reconcile_data')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        {
+          id: 'rec1',
+          name: 'reconcile_data',
+          arguments: { rangeA: 'A1:C3', rangeB: 'E1:G3' },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Laporan Rekonsiliasi Data');
+      expect(res.result).toContain('TRX-02');
+      expect(mockDriver.worksheets.includes('Hasil_Rekonsiliasi')).toBe(true);
+    });
+
     it('returns error for unknown tool', async () => {
       const result = await agent.executeTool(
         {

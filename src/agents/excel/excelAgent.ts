@@ -39,7 +39,8 @@ Ketika pengguna meminta membuat ringkasan/summary dan membuat chart (misal: "sum
 PENTING:
 Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.
 PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.
-PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis data atau menyusun formula.`;
+PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis data atau menyusun formula.
+PANDUAN REKONSILIASI DATA (SMART RECONCILER): Jika pengguna meminta mencocokkan data 2 tabel/sheet, membandingkan rekening koran/bank vs buku kas, atau mencari selisih transaksi, gunakan tool \`reconcile_data\` dengan menentukan \`rangeA\` dan \`rangeB\`. Tool ini otomatis membuat sheet laporan terstruktur "Hasil_Rekonsiliasi" lengkap dengan ringkasan selisih dan item yang belum tercatat.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -234,6 +235,23 @@ PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka,
             maxResults: { type: 'number', description: 'Jumlah kutipan chunk relevan yang ingin diambil (default: 3)' },
           },
           required: ['query'],
+        },
+      },
+      {
+        name: 'reconcile_data',
+        description: 'Merekonsiliasi dan mencocokkan dua tabel/sheet data (misal: Rekening Koran vs Buku Kas, Invoice vs Pembayaran). Otomatis mendeteksi selisih nominal, data belum tercatat, dan membuat sheet laporan terstruktur Hasil_Rekonsiliasi.',
+        parameters: {
+          type: 'object',
+          properties: {
+            rangeA: { type: 'string', description: 'Range sel atau sheet sumber pertama (misal: "A1:D50" atau "Mutasi_Bank!A1:D50")' },
+            rangeB: { type: 'string', description: 'Range sel atau sheet sumber kedua (misal: "E1:H50" atau "Buku_Kas!A1:D50")' },
+            keyColumnA: { type: 'string', description: 'Nama atau indeks kolom ID / No. Ref di Tabel A (opsional, auto-detect)' },
+            keyColumnB: { type: 'string', description: 'Nama atau indeks kolom ID / No. Ref di Tabel B (opsional, auto-detect)' },
+            amountColumnA: { type: 'string', description: 'Nama atau indeks kolom nominal di Tabel A (opsional, auto-detect)' },
+            amountColumnB: { type: 'string', description: 'Nama atau indeks kolom nominal di Tabel B (opsional, auto-detect)' },
+            tolerance: { type: 'number', description: 'Toleransi pembulatan selisih (default: 0)' },
+            outputSheetName: { type: 'string', description: 'Nama sheet baru untuk hasil laporan (default: "Hasil_Rekonsiliasi")' },
+          },
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -524,6 +542,24 @@ PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka,
           formattedText += `[${idx + 1}] **Sumber ${r.sourceCitation}** (Skor relevansi: ${r.score.toFixed(2)}):\n> "${r.snippet}"\n\n`;
         });
         return { success: true, result: formattedText.trim() };
+      }
+
+      if (toolCall.name === 'reconcile_data') {
+        const { rangeA, rangeB, keyColumnA, keyColumnB, amountColumnA, amountColumnB, tolerance, outputSheetName } = toolCall.arguments || {};
+        if (driver.reconcileData) {
+          const res = await driver.reconcileData({
+            rangeA,
+            rangeB,
+            keyColumnA,
+            keyColumnB,
+            amountColumnA,
+            amountColumnB,
+            tolerance,
+            outputSheetName,
+          });
+          return { success: true, result: res.markdownSummary };
+        }
+        return { success: false, error: 'Driver Excel tidak mendukung fitur rekonsiliasi data.' };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };
