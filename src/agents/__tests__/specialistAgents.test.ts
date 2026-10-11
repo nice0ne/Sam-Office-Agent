@@ -595,6 +595,54 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(res.result).toContain('Format Brand Korporat Diterapkan');
       expect(res.result).toContain('corporate_navy');
     });
+
+    it('provides execute_mail_merge tool and runs mail merge successfully', async () => {
+      const mockDriver = new MockOfficeDriver();
+      const testAgent = new WordAgent(mockDriver);
+      const tools = testAgent.getTools();
+      expect(tools.some(t => t.name === 'execute_mail_merge')).toBe(true);
+
+      const res = await testAgent.executeTool(
+        {
+          id: 'w-mail-merge-1',
+          name: 'execute_mail_merge',
+          arguments: {
+            templateText: 'Yth. {{Nama}} di {{Unit}}.',
+            tableData: {
+              headers: ['Nama', 'Unit'],
+              rows: [
+                ['Ahmad Fauzi', 'Keuangan'],
+                ['Dewi Lestari', 'Pemasaran'],
+              ],
+            },
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('Smart Mail Merge Berhasil Dieksekusi');
+      expect(res.result).toContain('Ahmad Fauzi');
+      expect(res.result).toContain('Dewi Lestari');
+    });
+
+    it('rejects execute_mail_merge when templateText is missing', async () => {
+      const mockDriver = new MockOfficeDriver();
+      const testAgent = new WordAgent(mockDriver);
+      const res = await testAgent.executeTool(
+        {
+          id: 'w-mail-merge-fail',
+          name: 'execute_mail_merge',
+          arguments: {},
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.error).toContain('templateText wajib diisi');
+    });
   });
 
   describe('PPTAgent execution', () => {

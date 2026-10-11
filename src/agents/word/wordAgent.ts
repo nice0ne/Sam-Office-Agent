@@ -44,7 +44,11 @@ PANDUAN ALUR KERJA:
     Jika pengguna meminta membuat Surat Keluar Resmi, Surat Dinas, BAST (Berita Acara Serah Terima), Notulen Rapat Eksekutif (MoM), atau Nota Dinas Internal:
     Gunakan tool \`generate_structured_doc\` dengan templateType: 'OfficialLetter', 'BAST', 'ExecutiveMoM', atau 'NotaDinas'.
     Gunakan format penanggalan baku bahasa Indonesia (misal: "20 Oktober 2026").
-    Sertakan nomor surat, perihal, rincian pihak/agenda, serta blok tanda tangan yang lengkap.`;
+    Sertakan nomor surat, perihal, rincian pihak/agenda, serta blok tanda tangan yang lengkap.
+12. PANDUAN SMART MAIL MERGE (DOKUMEN MASSAL DARI HUB/EXCEL):
+    Jika pengguna meminta mencetak, membuat, atau menggabungkan surat/sertifikat/undangan massal dari data tabel atau Excel Hub ke Word:
+    Gunakan tool \`execute_mail_merge\` dengan menyediakan \`templateText\` yang berisi tag {{Nama}}, {{NomorSurat}}, dsb.
+    Engine akan otomatis memetakan data penerima dari Sam Universal Hub / Excel dan mencetak dokumen terpisah per halaman (page break).`;
   }
 
   getTools(): ToolDefinition[] {
@@ -388,6 +392,32 @@ PANDUAN ALUR KERJA:
           required: ['query'],
         },
       },
+      {
+        name: 'execute_mail_merge',
+        description: 'Menjalankan Mail Merge pintar: mencetak dokumen massal (surat undangan, pemberitahuan, sertifikat) dari template Word dengan tag {{Placeholder}} yang diisi data tabel dari Excel / Sam Universal Hub.',
+        parameters: {
+          type: 'object',
+          properties: {
+            templateText: {
+              type: 'string',
+              description: 'Teks template dokumen dengan tag {{Placeholder}}, contoh: "Kepada Yth. {{Nama}}\\ndi {{Alamat}}..."',
+            },
+            tableData: {
+              type: 'object',
+              description: 'Data tabular kustom penerima (opsional, jika tidak diisi otomatis mengambil snapshot tabel dari Sam Universal Hub / Excel)',
+              properties: {
+                headers: { type: 'array', items: { type: 'string' } },
+                rows: { type: 'array', items: { type: 'array' } },
+              },
+            },
+            recipientColumnName: {
+              type: 'string',
+              description: 'Nama kolom penentu nama penerima (opsional, default mencari kolom "Nama")',
+            },
+          },
+          required: ['templateText'],
+        },
+      },
       ...getLearnedAndMetaTools(this.hostType),
     ];
   }
@@ -661,6 +691,31 @@ PANDUAN ALUR KERJA:
           formattedText += `[${idx + 1}] **Sumber ${r.sourceCitation}** (Skor relevansi: ${r.score.toFixed(2)}):\n> "${r.snippet}"\n\n`;
         });
         return { success: true, result: formattedText.trim() };
+      }
+
+      if (toolCall.name === 'execute_mail_merge') {
+        const { templateText, tableData, recipientColumnName } = toolCall.arguments || {};
+        if (!templateText) {
+          return { success: false, error: 'templateText wajib diisi untuk menjalankan Mail Merge.' };
+        }
+        if (driver.executeMailMerge) {
+          const res = await driver.executeMailMerge({
+            templateText,
+            tableData,
+            recipientColumnName,
+          });
+          return {
+            success: true,
+            result:
+              `### ✉️ Smart Mail Merge Berhasil Dieksekusi!\n\n` +
+              `- **Total Rekod/Penerima Diproses:** ${res.totalRecordsProcessed}\n` +
+              `- **Total Halaman Dokumen Dibuat:** ${res.totalPagesCreated}\n` +
+              `- **Daftar Penerima:** ${res.recipientNames.slice(0, 5).join(', ')}${res.recipientNames.length > 5 ? ` (+${res.recipientNames.length - 5} lainnya)` : ''}\n` +
+              `- **Keterangan:** Setiap dokumen telah dipisahkan dengan Page Break otomatis dan siap dicetak/diekspor ke PDF.\n\n` +
+              `> ${res.summaryMessage}`,
+          };
+        }
+        return { success: false, error: 'Driver Word tidak mendukung executeMailMerge.' };
       }
 
       return { success: false, error: 'Tool tidak ditemukan.' };
