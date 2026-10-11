@@ -6,6 +6,33 @@ import { SLIDESPEAK_THEME_PALETTES } from './slideBlueprintEngine';
 declare const PowerPoint: any;
 declare const Office: any;
 
+export const PPT_CANVAS_WIDTH = 960;
+export const PPT_CANVAS_HEIGHT = 540;
+export const PPT_MARGIN_HORIZONTAL = 80;
+export const PPT_CONTENT_WIDTH = PPT_CANVAS_WIDTH - PPT_MARGIN_HORIZONTAL * 2; // 800
+
+function applyBackgroundShape(slide: any, bgColor: string) {
+  if (typeof slide.shapes.addGeometricShape === 'function') {
+    const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
+    const bgRect = slide.shapes.addGeometricShape(rectType, {
+      left: 0,
+      top: 0,
+      width: PPT_CANVAS_WIDTH,
+      height: PPT_CANVAS_HEIGHT,
+    });
+    try {
+      if (bgRect.lineFormat) {
+        bgRect.lineFormat.visible = false;
+      }
+    } catch (_) {}
+    if (bgRect.fill?.setSolidColor) {
+      bgRect.fill.setSolidColor(bgColor);
+    }
+    return bgRect;
+  }
+  return null;
+}
+
 export class PPTDriver implements Partial<IDocumentDriver> {
   hostType = 'PowerPoint';
 
@@ -271,10 +298,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
             if (slide.shapes) {
               if (typeof slide.shapes.addTextBox === 'function') {
                 const titleBox = slide.shapes.addTextBox(title, {
-                  left: 60,
-                  top: 50,
-                  width: 600,
-                  height: 70,
+                  left: PPT_MARGIN_HORIZONTAL,
+                  top: 45,
+                  width: PPT_CONTENT_WIDTH,
+                  height: 65,
                 });
                 if (titleBox.textFrame?.textRange) {
                   titleBox.textFrame.textRange.text = title;
@@ -286,10 +313,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
                 if (bullets && bullets.length > 0) {
                   const bulletText = bullets.map(b => `• ${b}`).join('\n\n');
                   const bodyBox = slide.shapes.addTextBox(bulletText, {
-                    left: 60,
-                    top: 140,
-                    width: 600,
-                    height: 270,
+                    left: PPT_MARGIN_HORIZONTAL,
+                    top: 130,
+                    width: PPT_CONTENT_WIDTH,
+                    height: 350,
                   });
                   if (bodyBox.textFrame?.textRange) {
                     bodyBox.textFrame.textRange.text = bulletText;
@@ -300,11 +327,14 @@ export class PPTDriver implements Partial<IDocumentDriver> {
               } else if (typeof slide.shapes.addGeometricShape === 'function') {
                 const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
                 const rect = slide.shapes.addGeometricShape(rectType, {
-                  left: 60,
-                  top: 50,
-                  width: 600,
-                  height: 70,
+                  left: PPT_MARGIN_HORIZONTAL,
+                  top: 45,
+                  width: PPT_CONTENT_WIDTH,
+                  height: 65,
                 });
+                try {
+                  if (rect.lineFormat) rect.lineFormat.visible = false;
+                } catch (_) {}
                 if (rect.fill?.setSolidColor) {
                   rect.fill.setSolidColor('#F8FAFC');
                 }
@@ -316,11 +346,14 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
                 if (bullets && bullets.length > 0) {
                   const bodyRect = slide.shapes.addGeometricShape(rectType, {
-                    left: 60,
-                    top: 140,
-                    width: 600,
-                    height: 270,
+                    left: PPT_MARGIN_HORIZONTAL,
+                    top: 130,
+                    width: PPT_CONTENT_WIDTH,
+                    height: 350,
                   });
+                  try {
+                    if (bodyRect.lineFormat) bodyRect.lineFormat.visible = false;
+                  } catch (_) {}
                   if (bodyRect.fill?.setSolidColor) {
                     bodyRect.fill.setSolidColor('#FFFFFF');
                   }
@@ -368,10 +401,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
               if (slide.shapes) {
                 if (typeof slide.shapes.addTextBox === 'function') {
                   const titleBox = slide.shapes.addTextBox(s.title, {
-                    left: 60,
-                    top: 50,
-                    width: 600,
-                    height: 70,
+                    left: PPT_MARGIN_HORIZONTAL,
+                    top: 45,
+                    width: PPT_CONTENT_WIDTH,
+                    height: 65,
                   });
                   if (titleBox.textFrame?.textRange) {
                     titleBox.textFrame.textRange.text = s.title;
@@ -383,10 +416,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
                   if (s.bullets && s.bullets.length > 0) {
                     const bulletText = s.bullets.map(b => `• ${b}`).join('\n\n');
                     const bodyBox = slide.shapes.addTextBox(bulletText, {
-                      left: 60,
-                      top: 140,
-                      width: 600,
-                      height: 270,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 130,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 350,
                     });
                     if (bodyBox.textFrame?.textRange) {
                       bodyBox.textFrame.textRange.text = bulletText;
@@ -397,11 +430,14 @@ export class PPTDriver implements Partial<IDocumentDriver> {
                 } else if (typeof slide.shapes.addGeometricShape === 'function') {
                   const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
                   const rect = slide.shapes.addGeometricShape(rectType, {
-                    left: 60,
-                    top: 50,
-                    width: 600,
-                    height: 70,
+                    left: PPT_MARGIN_HORIZONTAL,
+                    top: 45,
+                    width: PPT_CONTENT_WIDTH,
+                    height: 65,
                   });
+                  try {
+                    if (rect.lineFormat) rect.lineFormat.visible = false;
+                  } catch (_) {}
                   if (rect.fill?.setSolidColor) {
                     rect.fill.setSolidColor('#F8FAFC');
                   }
@@ -413,11 +449,14 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
                   if (s.bullets && s.bullets.length > 0) {
                     const bodyRect = slide.shapes.addGeometricShape(rectType, {
-                      left: 60,
-                      top: 140,
-                      width: 600,
-                      height: 270,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 130,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 350,
                     });
+                    try {
+                      if (bodyRect.lineFormat) bodyRect.lineFormat.visible = false;
+                    } catch (_) {}
                     if (bodyRect.fill?.setSolidColor) {
                       bodyRect.fill.setSolidColor('#FFFFFF');
                     }
@@ -470,54 +509,43 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
             try {
               if (slide.shapes) {
-                // Background shape if GeometricShape is available
-                if (typeof slide.shapes.addGeometricShape === 'function') {
-                  const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
-                  const bgRect = slide.shapes.addGeometricShape(rectType, {
-                    left: 0,
-                    top: 0,
-                    width: 720,
-                    height: 405,
-                  });
-                  if (bgRect.fill?.setSolidColor) {
-                    bgRect.fill.setSolidColor(colors.bg);
-                  }
-                }
+                // Background shape if GeometricShape is available (960x540 full bleed, borderless)
+                applyBackgroundShape(slide, colors.bg);
 
                 if (typeof slide.shapes.addTextBox === 'function') {
                   if (s.layout === 'title_cover') {
                     const titleBox = slide.shapes.addTextBox(s.title, {
-                      left: 60,
-                      top: 120,
-                      width: 600,
-                      height: 100,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 150,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 120,
                     });
                     if (titleBox.textFrame?.textRange) {
                       titleBox.textFrame.textRange.text = s.title;
-                      titleBox.textFrame.textRange.font.size = 36;
+                      titleBox.textFrame.textRange.font.size = 38;
                       titleBox.textFrame.textRange.font.bold = true;
                       titleBox.textFrame.textRange.font.color = colors.primary;
                     }
                     if (s.content && s.content.length > 0) {
                       const subtitleText = s.content.join('  •  ');
                       const subBox = slide.shapes.addTextBox(subtitleText, {
-                        left: 60,
-                        top: 230,
-                        width: 600,
-                        height: 60,
+                        left: PPT_MARGIN_HORIZONTAL,
+                        top: 280,
+                        width: PPT_CONTENT_WIDTH,
+                        height: 90,
                       });
                       if (subBox.textFrame?.textRange) {
                         subBox.textFrame.textRange.text = subtitleText;
                         subBox.textFrame.textRange.font.size = 20;
-                        subBox.textFrame.textRange.font.color = colors.secondary;
+                        subBox.textFrame.textRange.font.color = colors.secondary || colors.text;
                       }
                     }
-                  } else if (s.layout === 'metric_highlights' && s.metrics && s.metrics.length > 0) {
+                  } else if (s.layout === 'split_comparison') {
                     const titleBox = slide.shapes.addTextBox(s.title, {
-                      left: 60,
-                      top: 40,
-                      width: 600,
-                      height: 60,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 45,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 65,
                     });
                     if (titleBox.textFrame?.textRange) {
                       titleBox.textFrame.textRange.text = s.title;
@@ -526,27 +554,94 @@ export class PPTDriver implements Partial<IDocumentDriver> {
                       titleBox.textFrame.textRange.font.color = colors.primary;
                     }
 
-                    const cardWidth = Math.min(180, Math.floor(600 / s.metrics.length) - 10);
-                    s.metrics.forEach((m, mIdx) => {
-                      const mBox = slide.shapes.addTextBox(`${m.value}\n${m.label}`, {
-                        left: 60 + mIdx * (cardWidth + 15),
-                        top: 140,
-                        width: cardWidth,
-                        height: 120,
+                    const allItems = s.content || [];
+                    const mid = Math.ceil(allItems.length / 2);
+                    const leftItems = allItems.slice(0, mid);
+                    const rightItems = allItems.slice(mid);
+                    const colWidth = 385;
+                    const colGap = 30;
+
+                    const leftBox = slide.shapes.addTextBox(leftItems.map(b => `• ${b}`).join('\n\n'), {
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 130,
+                      width: colWidth,
+                      height: 350,
+                    });
+                    if (leftBox.textFrame?.textRange) {
+                      leftBox.textFrame.textRange.text = leftItems.map(b => `• ${b}`).join('\n\n');
+                      leftBox.textFrame.textRange.font.size = 18;
+                      leftBox.textFrame.textRange.font.color = colors.text;
+                    }
+
+                    const rightBox = slide.shapes.addTextBox(rightItems.map(b => `• ${b}`).join('\n\n'), {
+                      left: PPT_MARGIN_HORIZONTAL + colWidth + colGap,
+                      top: 130,
+                      width: colWidth,
+                      height: 350,
+                    });
+                    if (rightBox.textFrame?.textRange) {
+                      rightBox.textFrame.textRange.text = rightItems.map(b => `• ${b}`).join('\n\n');
+                      rightBox.textFrame.textRange.font.size = 18;
+                      rightBox.textFrame.textRange.font.color = colors.text;
+                    }
+                  } else if (s.layout === 'metric_highlights' && s.metrics && s.metrics.length > 0) {
+                    const titleBox = slide.shapes.addTextBox(s.title, {
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 45,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 65,
+                    });
+                    if (titleBox.textFrame?.textRange) {
+                      titleBox.textFrame.textRange.text = s.title;
+                      titleBox.textFrame.textRange.font.size = 28;
+                      titleBox.textFrame.textRange.font.bold = true;
+                      titleBox.textFrame.textRange.font.color = colors.primary;
+                    }
+
+                    const metricCount = Math.min(s.metrics.length, 4);
+                    const gap = 20;
+                    const cardWidth = Math.floor((PPT_CONTENT_WIDTH - (metricCount - 1) * gap) / metricCount);
+
+                    s.metrics.slice(0, metricCount).forEach((m, mIdx) => {
+                      const cardLeft = PPT_MARGIN_HORIZONTAL + mIdx * (cardWidth + gap);
+                      const cardTop = 150;
+                      const cardHeight = 220;
+
+                      if (typeof slide.shapes.addGeometricShape === 'function' && colors.cardBg) {
+                        const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
+                        const cardShape = slide.shapes.addGeometricShape(rectType, {
+                          left: cardLeft,
+                          top: cardTop,
+                          width: cardWidth,
+                          height: cardHeight,
+                        });
+                        try {
+                          if (cardShape.lineFormat) cardShape.lineFormat.visible = false;
+                        } catch (_) {}
+                        if (cardShape.fill?.setSolidColor) {
+                          cardShape.fill.setSolidColor(colors.cardBg);
+                        }
+                      }
+
+                      const mBox = slide.shapes.addTextBox(`${m.value}\n\n${m.label}`, {
+                        left: cardLeft + 15,
+                        top: cardTop + 25,
+                        width: cardWidth - 30,
+                        height: cardHeight - 50,
                       });
                       if (mBox.textFrame?.textRange) {
-                        mBox.textFrame.textRange.text = `${m.value}\n${m.label}`;
-                        mBox.textFrame.textRange.font.size = 22;
+                        mBox.textFrame.textRange.text = `${m.value}\n\n${m.label}`;
+                        mBox.textFrame.textRange.font.size = 26;
                         mBox.textFrame.textRange.font.bold = true;
-                        mBox.textFrame.textRange.font.color = colors.secondary;
+                        mBox.textFrame.textRange.font.color = colors.accent || colors.primary;
                       }
                     });
                   } else {
                     const titleBox = slide.shapes.addTextBox(s.title, {
-                      left: 60,
-                      top: 40,
-                      width: 600,
-                      height: 60,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 45,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 65,
                     });
                     if (titleBox.textFrame?.textRange) {
                       titleBox.textFrame.textRange.text = s.title;
@@ -557,10 +652,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
                     if (s.content && s.content.length > 0) {
                       const bodyBox = slide.shapes.addTextBox(s.content.map(b => `• ${b}`).join('\n\n'), {
-                        left: 60,
-                        top: 120,
-                        width: 600,
-                        height: 250,
+                        left: PPT_MARGIN_HORIZONTAL,
+                        top: 130,
+                        width: PPT_CONTENT_WIDTH,
+                        height: 350,
                       });
                       if (bodyBox.textFrame?.textRange) {
                         bodyBox.textFrame.textRange.text = s.content.map(b => `• ${b}`).join('\n\n');
@@ -598,13 +693,9 @@ export class PPTDriver implements Partial<IDocumentDriver> {
         await PowerPoint.run(async (context: any) => {
           const slideCollection = context.presentation.slides;
 
-          const themePalette: Record<string, { primary: string; secondary: string; bg: string; text: string }> = {
-            corporate_blue: { primary: '#1E3A8A', secondary: '#3B82F6', bg: '#F8FAFC', text: '#1E293B' },
-            emerald_executive: { primary: '#065F46', secondary: '#10B981', bg: '#F0FDF4', text: '#0F172A' },
-            modern_dark: { primary: '#38BDF8', secondary: '#818CF8', bg: '#0F172A', text: '#F8FAFC' },
-            minimalist_clean: { primary: '#18181B', secondary: '#71717A', bg: '#FFFFFF', text: '#27272A' },
-          };
-          const colors = themePalette[theme] || themePalette.corporate_blue;
+          const colors =
+            (options?.theme && SLIDESPEAK_THEME_PALETTES[options.theme]) ||
+            SLIDESPEAK_THEME_PALETTES.corporate_blue;
 
           for (const s of result.slides) {
             slideCollection.add();
@@ -617,53 +708,43 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
             try {
               if (slide.shapes) {
-                if (typeof slide.shapes.addGeometricShape === 'function') {
-                  const rectType = PowerPoint.GeometricShapeType?.rectangle || 'Rectangle';
-                  const bgRect = slide.shapes.addGeometricShape(rectType, {
-                    left: 0,
-                    top: 0,
-                    width: 720,
-                    height: 405,
-                  });
-                  if (bgRect.fill?.setSolidColor) {
-                    bgRect.fill.setSolidColor(colors.bg);
-                  }
-                }
+                // Background shape if GeometricShape is available (960x540 full bleed, borderless)
+                applyBackgroundShape(slide, colors.bg);
 
                 if (typeof slide.shapes.addTextBox === 'function') {
                   if (s.category === 'cover') {
                     const titleBox = slide.shapes.addTextBox(s.title, {
-                      left: 60,
-                      top: 120,
-                      width: 600,
-                      height: 100,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 150,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 120,
                     });
                     if (titleBox.textFrame?.textRange) {
                       titleBox.textFrame.textRange.text = s.title;
-                      titleBox.textFrame.textRange.font.size = 36;
+                      titleBox.textFrame.textRange.font.size = 38;
                       titleBox.textFrame.textRange.font.bold = true;
                       titleBox.textFrame.textRange.font.color = colors.primary;
                     }
                     if (s.bullets && s.bullets.length > 0) {
                       const subtitleText = s.bullets.join('  •  ');
                       const subBox = slide.shapes.addTextBox(subtitleText, {
-                        left: 60,
-                        top: 230,
-                        width: 600,
-                        height: 60,
+                        left: PPT_MARGIN_HORIZONTAL,
+                        top: 280,
+                        width: PPT_CONTENT_WIDTH,
+                        height: 90,
                       });
                       if (subBox.textFrame?.textRange) {
                         subBox.textFrame.textRange.text = subtitleText;
                         subBox.textFrame.textRange.font.size = 20;
-                        subBox.textFrame.textRange.font.color = colors.secondary;
+                        subBox.textFrame.textRange.font.color = colors.secondary || colors.text;
                       }
                     }
                   } else {
                     const titleBox = slide.shapes.addTextBox(s.title, {
-                      left: 60,
-                      top: 40,
-                      width: 600,
-                      height: 60,
+                      left: PPT_MARGIN_HORIZONTAL,
+                      top: 45,
+                      width: PPT_CONTENT_WIDTH,
+                      height: 65,
                     });
                     if (titleBox.textFrame?.textRange) {
                       titleBox.textFrame.textRange.text = s.title;
@@ -675,10 +756,10 @@ export class PPTDriver implements Partial<IDocumentDriver> {
                     if (s.bullets && s.bullets.length > 0) {
                       const bulletText = s.bullets.map((b) => `• ${b}`).join('\n\n');
                       const bodyBox = slide.shapes.addTextBox(bulletText, {
-                        left: 60,
-                        top: 120,
-                        width: 600,
-                        height: 250,
+                        left: PPT_MARGIN_HORIZONTAL,
+                        top: 130,
+                        width: PPT_CONTENT_WIDTH,
+                        height: 350,
                       });
                       if (bodyBox.textFrame?.textRange) {
                         bodyBox.textFrame.textRange.text = bulletText;
@@ -726,14 +807,14 @@ export class PPTDriver implements Partial<IDocumentDriver> {
             if (slide.shapes) {
               if (typeof slide.shapes.addTextBox === 'function') {
                 const titleBox = slide.shapes.addTextBox(title, {
-                  left: 60,
+                  left: PPT_MARGIN_HORIZONTAL,
                   top: 30,
-                  width: 600,
+                  width: PPT_CONTENT_WIDTH,
                   height: 50,
                 });
                 if (titleBox.textFrame?.textRange) {
                   titleBox.textFrame.textRange.text = title;
-                  titleBox.textFrame.textRange.font.size = 24;
+                  titleBox.textFrame.textRange.font.size = 26;
                   titleBox.textFrame.textRange.font.bold = true;
                   titleBox.textFrame.textRange.font.color = '#1E293B';
                 }
@@ -741,17 +822,17 @@ export class PPTDriver implements Partial<IDocumentDriver> {
 
               if (typeof slide.shapes.addImage === 'function') {
                 slide.shapes.addImage(base64, {
-                  left: 60,
+                  left: PPT_MARGIN_HORIZONTAL,
                   top: 90,
-                  width: 600,
-                  height: 350,
+                  width: PPT_CONTENT_WIDTH,
+                  height: 400,
                 });
               } else if (typeof slide.shapes.addImageFromBase64 === 'function') {
                 slide.shapes.addImageFromBase64(base64, {
-                  left: 60,
+                  left: PPT_MARGIN_HORIZONTAL,
                   top: 90,
-                  width: 600,
-                  height: 350,
+                  width: PPT_CONTENT_WIDTH,
+                  height: 400,
                 });
               }
             }
