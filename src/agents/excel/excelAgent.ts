@@ -1,4 +1,4 @@
-import { getOfficeDriver } from '../../services/office';
+import { getOfficeDriver, synthesizeExecutiveReport } from '../../services/office';
 import { validateExcelFormula } from '../../utils/formulaValidator';
 import { AgentContext, IAgent } from '../types';
 import { ToolCall, ToolDefinition } from '../../types';
@@ -40,7 +40,10 @@ PENTING:
 Jika pengguna meminta ringkasan tekstual saja ("summary sheet ini", "ringkas data ini", "analisis sheet ini", dll.), Anda DAPAT MEMBACA dan menganalisis data tabel di atas secara langsung! Jelaskan angka kunci, total, rata-rata, tren, dan kesimpulan secara komprehensif, cerdas, dan ramah dalam bahasa Indonesia.
 PANDUAN PEMBELAJARAN MANDIRI (SELF-LEARNING SOUL.MD): Jika pengguna memberikan arahan gaya baru, preferensi format, koreksi istilah, atau direktif penulisan spesifik, proaktif panggil tool \`learn_corporate_directive\` untuk menyimpannya ke memori korporat.
 PANDUAN REFERENSI BERKAS LOKAL (MINI-RAG): Jika pengguna menanyakan data, angka, atau pedoman dari berkas referensi yang dilampirkan, gunakan tool \`search_reference_knowledge\` untuk mencari kutipan relevan sebelum menulis data atau menyusun formula.
-PANDUAN REKONSILIASI DATA (SMART RECONCILER): Jika pengguna meminta mencocokkan data 2 tabel/sheet, membandingkan rekening koran/bank vs buku kas, atau mencari selisih transaksi, gunakan tool \`reconcile_data\` dengan menentukan \`rangeA\` dan \`rangeB\`. Tool ini otomatis membuat sheet laporan terstruktur "Hasil_Rekonsiliasi" lengkap dengan ringkasan selisih dan item yang belum tercatat.`;
+PANDUAN REKONSILIASI DATA (SMART RECONCILER): Jika pengguna meminta mencocokkan data 2 tabel/sheet, membandingkan rekening koran/bank vs buku kas, atau mencari selisih transaksi, gunakan tool \`reconcile_data\` dengan menentukan \`rangeA\` dan \`rangeB\`. Tool ini otomatis membuat sheet laporan terstruktur "Hasil_Rekonsiliasi" lengkap dengan ringkasan selisih dan item yang belum tercatat.
+44. PANDUAN 1-CLICK EXECUTIVE REPORTING PIPELINE (EXCEL -> WORD -> PPT):
+    Jika pengguna meminta dibuatkan laporan eksekutif lengkap (dokumen narasi Word dan slide presentasi PPT) dari data tabel lembar kerja aktif:
+    Gunakan tool \`execute_executive_pipeline\`. Tool ini akan menganalisis data Excel, membentuk naskah laporan Word resmi, menyusun slide deck PowerPoint eksekutif, dan menyimpannya ke Universal Hub.`;
   }
 
   getTools(): ToolDefinition[] {
@@ -252,6 +255,25 @@ PANDUAN REKONSILIASI DATA (SMART RECONCILER): Jika pengguna meminta mencocokkan 
             tolerance: { type: 'number', description: 'Toleransi pembulatan selisih (default: 0)' },
             outputSheetName: { type: 'string', description: 'Nama sheet baru untuk hasil laporan (default: "Hasil_Rekonsiliasi")' },
           },
+        },
+      },
+      {
+        name: 'execute_executive_pipeline',
+        description: 'Menjalankan pipeline laporan eksekutif 1-klik terpadu: menganalisis tabel data Excel aktif, membentuk naskah dokumen narasi laporan Word, dan menyintesis slide deck presentasi PowerPoint siap pakai.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Judul laporan eksekutif (misal: "Laporan Kinerja Q3")' },
+            topic: { type: 'string', description: 'Topik evaluasi atau konteks bisnis laporan' },
+            executiveSummary: { type: 'string', description: 'Ringkasan narasi eksekutif awal (opsional)' },
+            targetSlideCount: { type: 'number', description: 'Target jumlah slide presentasi (default: 3)' },
+            theme: {
+              type: 'string',
+              enum: ['corporate_blue', 'emerald_executive', 'modern_dark', 'minimalist_clean'],
+              description: 'Tema visual PowerPoint',
+            },
+          },
+          required: ['title'],
         },
       },
       ...getLearnedAndMetaTools(this.hostType),
@@ -560,6 +582,45 @@ PANDUAN REKONSILIASI DATA (SMART RECONCILER): Jika pengguna meminta mencocokkan 
           return { success: true, result: res.markdownSummary };
         }
         return { success: false, error: 'Driver Excel tidak mendukung fitur rekonsiliasi data.' };
+      }
+
+      if (toolCall.name === 'execute_executive_pipeline') {
+        const { title, topic, executiveSummary, targetSlideCount, theme } = toolCall.arguments || {};
+        if (!title) {
+          return { success: false, error: 'Judul laporan (title) wajib diisi.' };
+        }
+
+        let tableData: { headers: string[]; rows: (string | number)[][] } | undefined;
+        try {
+          const activeData = driver.readActiveSheetData ? await driver.readActiveSheetData() : await driver.readActiveRange();
+          if (activeData?.values && activeData.values.length > 1) {
+            const headers = activeData.values[0].map(String);
+            const rows = activeData.values.slice(1);
+            tableData = { headers, rows };
+          }
+        } catch {
+          // fallback to defaults in synthesizeExecutiveReport
+        }
+
+        const pipelineRes = await synthesizeExecutiveReport({
+          title,
+          topic,
+          executiveSummary,
+          tableData,
+          targetSlideCount: Number(targetSlideCount) || 3,
+          theme,
+        });
+
+        return {
+          success: true,
+          result:
+            `### 🚀 1-Click Executive Reporting Pipeline Sukses!\n\n` +
+            `- **Judul Laporan:** ${pipelineRes.title}\n` +
+            `- **Dokumen Word:** ${pipelineRes.wordDocument.sectionsCount} bagian terstruktur siap pakai\n` +
+            `- **Slide Deck PPT:** ${pipelineRes.powerPointDeck.totalSlides} slide presentasi (Tema: ${theme || 'corporate_blue'})\n` +
+            `- **Universal Hub Snapshot ID:** \`${pipelineRes.hubSnapshotId}\`\n\n` +
+            `> Seluruh artefak telah disinkronkan dan dapat langsung dibuka di Word maupun PowerPoint via Universal Hub.`,
+        };
       }
 
       return { success: false, error: `Tool ${toolCall.name} tidak dikenali.` };

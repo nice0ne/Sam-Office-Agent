@@ -335,6 +335,36 @@ describe('Specialist Agents Tools & Prompts', () => {
       expect(mockDriver.worksheets.includes('Hasil_Rekonsiliasi')).toBe(true);
     });
 
+    it('executes execute_executive_pipeline successfully and returns synchronized artifacts summary', async () => {
+      const mockDriver = new MockOfficeDriver();
+      await mockDriver.writeCells('A1:C3', [
+        ['Departemen', 'Target', 'Realisasi'],
+        ['Finansial', '100', '105'],
+        ['Operasional', '80', '82'],
+      ]);
+      const testAgent = new ExcelAgent(mockDriver);
+
+      const res = await testAgent.executeTool(
+        {
+          id: 'call-exec-pipe',
+          name: 'execute_executive_pipeline',
+          arguments: {
+            title: 'Laporan Kuartal IV 2026',
+            topic: 'Kinerja Operasional dan Keuangan',
+            targetSlideCount: 3,
+            theme: 'corporate_blue',
+          },
+          status: 'pending',
+        },
+        context
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.result).toContain('1-Click Executive Reporting Pipeline Sukses');
+      expect(res.result).toContain('Laporan Kuartal IV 2026');
+      expect(res.result).toContain('Universal Hub Snapshot ID');
+    });
+
     it('returns error for unknown tool', async () => {
       const result = await agent.executeTool(
         {
