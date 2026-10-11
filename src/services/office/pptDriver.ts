@@ -1,6 +1,7 @@
 import { DiagramResult, DocToDeckOptions, DocToDeckResult, IDocumentDriver, InsertFlowchartOptions, ThemedDeckOptions } from './types';
 import { synthesizeDocToDeck } from './docToDeckTransformer';
 import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
+import { SLIDESPEAK_THEME_PALETTES } from './slideBlueprintEngine';
 
 declare const PowerPoint: any;
 declare const Office: any;
@@ -454,13 +455,9 @@ export class PPTDriver implements Partial<IDocumentDriver> {
         return await PowerPoint.run(async (context: any) => {
           const slideCollection = context.presentation.slides;
 
-          const themePalette: Record<string, { primary: string; secondary: string; bg: string; text: string }> = {
-            corporate_blue: { primary: '#1E3A8A', secondary: '#3B82F6', bg: '#F8FAFC', text: '#1E293B' },
-            emerald_executive: { primary: '#065F46', secondary: '#10B981', bg: '#F0FDF4', text: '#0F172A' },
-            modern_dark: { primary: '#38BDF8', secondary: '#818CF8', bg: '#0F172A', text: '#F8FAFC' },
-            minimalist_clean: { primary: '#18181B', secondary: '#71717A', bg: '#FFFFFF', text: '#27272A' },
-          };
-          const colors = themePalette[theme] || themePalette.corporate_blue;
+          const colors =
+            (options.theme && SLIDESPEAK_THEME_PALETTES[options.theme]) ||
+            SLIDESPEAK_THEME_PALETTES.corporate_blue;
 
           for (const s of options.slides) {
             slideCollection.add();

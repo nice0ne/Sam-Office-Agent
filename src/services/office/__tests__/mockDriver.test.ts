@@ -271,6 +271,22 @@ Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
     expect(result.totalRecordsProcessed).toBeGreaterThan(0);
     expect(driver.wordContent.length).toBeGreaterThan(0);
   });
+
+  it('handles generateThemedDeck with SlideSpeak themes (mckinsey_consulting, linear_dark, sequoia_pitch)', async () => {
+    const res = await driver.generateThemedDeck({
+      topic: 'Strategi Transformasi Digital 2027',
+      theme: 'mckinsey_consulting',
+      slides: [
+        { title: 'Executive Summary', content: ['Fokus pada efisiensi 30%'] },
+        { title: 'Pilar Inisiatif', content: ['Automasi AI', 'Migrasi Cloud'] },
+      ],
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.createdCount).toBe(2);
+    expect(driver.slides.length).toBe(2);
+    expect(driver.slides[0].title).toBe('Executive Summary');
+  });
 });
 
 describe('getOfficeDriver', () => {
