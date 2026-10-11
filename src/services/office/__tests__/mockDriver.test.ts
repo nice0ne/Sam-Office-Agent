@@ -241,6 +241,36 @@ Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
     expect(result.discrepancies[0].diff).toBe(50000);
     expect(driver.worksheets.includes('Hasil_Rekonsiliasi')).toBe(true);
   });
+
+  it('handles executeMailMerge with provided tableData and splits pages with breaks', async () => {
+    const templateText = 'Undangan Resmi kepada {{Nama}} di {{Kota}}.';
+    const result = await driver.executeMailMerge({
+      templateText,
+      tableData: {
+        headers: ['Nama', 'Kota'],
+        rows: [
+          ['Andi Prasetyo', 'Surabaya'],
+          ['Dewi Sartika', 'Yogyakarta'],
+        ],
+      },
+    });
+
+    expect(result.totalRecordsProcessed).toBe(2);
+    expect(result.totalPagesCreated).toBe(2);
+    expect(result.recipientNames).toEqual(['Andi Prasetyo', 'Dewi Sartika']);
+    expect(driver.wordContent.length).toBe(3); // page 1, page break, page 2
+    expect(driver.wordContent[0]).toContain('Andi Prasetyo');
+    expect(driver.wordContent[1]).toBe('--- PAGE BREAK ---');
+    expect(driver.wordContent[2]).toContain('Dewi Sartika');
+  });
+
+  it('handles executeMailMerge fallback gracefully when tableData is omitted', async () => {
+    const templateText = 'Kepada Sdr. {{Nama}} ({{Jabatan}}).';
+    const result = await driver.executeMailMerge({ templateText });
+
+    expect(result.totalRecordsProcessed).toBeGreaterThan(0);
+    expect(driver.wordContent.length).toBeGreaterThan(0);
+  });
 });
 
 describe('getOfficeDriver', () => {

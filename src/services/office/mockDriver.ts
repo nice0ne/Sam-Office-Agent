@@ -21,11 +21,15 @@ import {
   SheetAuditResult,
   StructuredDocOptions,
   ThemedDeckOptions,
+  MailMergeOptions,
+  MailMergeResult,
 } from './types';
 import { analyzeContractCompliance } from './complianceReviewer';
 import { synthesizeDocToDeck } from './docToDeckTransformer';
 import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
 import { reconcileDataSets, buildReconciliationSheetGrid } from './dataReconciler';
+import { composeMailMergeBatch } from './mailMergeEngine';
+import { getLatestCrossAppSnapshot } from '../storage/crossAppBridge';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
@@ -345,6 +349,38 @@ export class MockOfficeDriver implements IDocumentDriver {
       headingsCount,
       message: `Berhasil menerapkan gaya korporat ${theme} (${fontFamily}) pada ${styledParagraphsCount} paragraf.`,
     };
+  }
+
+  async executeMailMerge(options: MailMergeOptions): Promise<MailMergeResult> {
+    let tableData = options.tableData;
+    if (!tableData) {
+      const snapshot = getLatestCrossAppSnapshot('Word');
+      if (snapshot?.tableData) {
+        tableData = {
+          headers: snapshot.tableData.headers,
+          rows: snapshot.tableData.rows,
+        };
+      }
+    }
+    if (!tableData || tableData.rows.length === 0) {
+      tableData = {
+        headers: ['Nama', 'Jabatan', 'Organisasi'],
+        rows: [
+          ['Budi Santoso', 'Manajer Operasional', 'PT Inovasi Mandiri'],
+          ['Siti Rahma', 'Kepala Divisi SDM', 'PT Digital Nusantara'],
+        ],
+      };
+    }
+
+    const { pages, result } = composeMailMergeBatch(options, tableData);
+    this.wordContent = [];
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) {
+        this.wordContent.push('--- PAGE BREAK ---');
+      }
+      this.wordContent.push(pages[i]);
+    }
+    return result;
   }
 
   async getSlideContext() {

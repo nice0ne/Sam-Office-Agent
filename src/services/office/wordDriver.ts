@@ -8,9 +8,13 @@ import {
   InsertFlowchartOptions,
   PolishTextOptions,
   StructuredDocOptions,
+  MailMergeOptions,
+  MailMergeResult,
 } from './types';
 import { analyzeContractCompliance } from './complianceReviewer';
 import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
+import { composeMailMergeBatch } from './mailMergeEngine';
+import { getLatestCrossAppSnapshot } from '../storage/crossAppBridge';
 
 declare const Word: any;
 
@@ -263,5 +267,47 @@ export class WordDriver implements Partial<IDocumentDriver> {
       base64Png: base64,
       inserted: true,
     };
+  }
+
+  async executeMailMerge(options: MailMergeOptions): Promise<MailMergeResult> {
+    let tableData = options.tableData;
+    if (!tableData) {
+      const snapshot = getLatestCrossAppSnapshot('Word');
+      if (snapshot?.tableData) {
+        tableData = {
+          headers: snapshot.tableData.headers,
+          rows: snapshot.tableData.rows,
+        };
+      }
+    }
+    if (!tableData || tableData.rows.length === 0) {
+      tableData = {
+        headers: ['Nama', 'Jabatan', 'Organisasi'],
+        rows: [
+          ['Budi Santoso', 'Manajer Operasional', 'PT Inovasi Mandiri'],
+          ['Siti Rahma', 'Kepala Divisi SDM', 'PT Digital Nusantara'],
+        ],
+      };
+    }
+
+    const { pages, result } = composeMailMergeBatch(options, tableData);
+
+    if (typeof Word !== 'undefined' && typeof Word.run === 'function') {
+      await Word.run(async (context: any) => {
+        const body = context.document.body;
+        for (let i = 0; i < pages.length; i++) {
+          if (i > 0) {
+            body.insertBreak(Word.BreakType.page, Word.InsertLocation.end);
+          }
+          const lines = pages[i].split(/\r?\n/);
+          for (const line of lines) {
+            body.insertParagraph(line, Word.InsertLocation.end);
+          }
+        }
+        await context.sync();
+      });
+    }
+
+    return result;
   }
 }
