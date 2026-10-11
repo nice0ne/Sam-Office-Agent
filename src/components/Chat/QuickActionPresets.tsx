@@ -117,6 +117,11 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
       prompt: 'Ambil snapshot data terbaru dari Excel di Universal Hub, lalu buatkan tabel dan draf naskah laporannya di dokumen ini.',
     },
     {
+      id: 'word_mail_merge',
+      label: '✉️ Mail Merge (Dari Excel Hub)',
+      prompt: 'Jalankan Mail Merge otomatis menggunakan data penerima dari Excel Universal Hub: buatkan template dokumen resmi dengan tag {{Nama}} dan cetak per halaman terpisah untuk setiap penerima.',
+    },
+    {
       id: 'word_web_search',
       label: '🌐 Riset Web & Tulis Laporan',
       prompt: 'Cari tren dan perkembangan industri terkini di internet, lalu buatkan naskah laporan eksekutif lengkap dengan tabel dan kesimpulannya.',

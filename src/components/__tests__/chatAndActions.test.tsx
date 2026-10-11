@@ -1010,13 +1010,20 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(13);
+    expect(buttons.length).toBe(14);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
     momButton.props.onClick();
     expect(onSelectPreset).toHaveBeenCalledWith(
       'Buatkan dokumen terstruktur Notulen Rapat (Minutes of Meeting) lengkap dengan agenda, pembahasan, dan action items.'
+    );
+
+    const mailMergeBtn = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Mail Merge (Dari Excel Hub)'));
+    expect(mailMergeBtn).toBeDefined();
+    mailMergeBtn.props.onClick();
+    expect(onSelectPreset).toHaveBeenCalledWith(
+      'Jalankan Mail Merge otomatis menggunakan data penerima dari Excel Universal Hub: buatkan template dokumen resmi dengan tag {{Nama}} dan cetak per halaman terpisah untuk setiap penerima.'
     );
 
     const html = renderToString(<QuickActionPresets host="Word" onSelectPreset={onSelectPreset} />);
@@ -1026,6 +1033,7 @@ describe('QuickActionPresets Component', () => {
     expect(html).toContain('Buat SOP');
     expect(html).toContain('Poles Bahasa &amp; EYD');
     expect(html).toContain('Impor Data dari Excel Hub');
+    expect(html).toContain('Mail Merge (Dari Excel Hub)');
   });
 
   it('renders new Word presets for Review Kontrak, Format Brand Korporat, and Hub Import', () => {
