@@ -154,9 +154,21 @@ export interface CorporateStyleResult {
   message: string;
 }
 
+export type PresentationTheme =
+  | 'corporate_blue'
+  | 'emerald_executive'
+  | 'modern_dark'
+  | 'minimalist_clean'
+  | 'mckinsey_consulting'
+  | 'demo_day'
+  | 'linear_dark'
+  | 'stripe_saas'
+  | 'ted_stage'
+  | 'sequoia_pitch';
+
 export interface ThemedDeckOptions {
   topic: string;
-  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  theme?: PresentationTheme;
   slides: Array<{
     title: string;
     layout?: 'title_cover' | 'split_comparison' | 'bullet_points' | 'metric_highlights';
@@ -232,7 +244,7 @@ export interface DocToDeckSlide {
 export interface DocToDeckOptions {
   documentText?: string;
   targetSlideCount?: number;
-  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  theme?: PresentationTheme;
   presentationTitle?: string;
   targetAudience?: 'executive' | 'technical' | 'team_all_hands';
 }
@@ -359,8 +371,21 @@ export interface ExecutiveReportPipelineOptions {
   };
   metrics?: Array<{ label: string; value: string | number; trend?: 'up' | 'down' | 'neutral' }>;
   targetSlideCount?: number;
-  theme?: 'corporate_blue' | 'emerald_executive' | 'modern_dark' | 'minimalist_clean';
+  theme?: PresentationTheme;
   executiveSummary?: string;
+}
+
+export interface SequoiaPitchOptions {
+  companyName: string;
+  oneLiner: string;
+  problem: string;
+  solution: string;
+  targetMarket?: string;
+  competition?: string;
+  businessModel?: string;
+  teamHighlight?: string;
+  financialMilestone?: string;
+  fundraiseAsk?: string;
 }
 
 export interface ExecutiveReportPipelineResult {

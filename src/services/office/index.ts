@@ -47,3 +47,4 @@ export * from './administrativeDocTemplates';
 export * from './dataReconciler';
 export * from './mailMergeEngine';
 export * from './executivePipeline';
+export * from './slideBlueprintEngine';
