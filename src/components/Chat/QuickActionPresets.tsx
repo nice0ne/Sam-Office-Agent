@@ -67,6 +67,21 @@ export const PRESETS_BY_HOST: Record<HostType, QuickPresetItem[]> = {
   ],
   Word: [
     {
+      id: 'word_official_letter',
+      label: '🏛️ Surat Dinas Resmi',
+      prompt: 'Buatkan draf surat keluar dinas resmi lengkap dengan kop lembaga/perusahaan, nomor surat, perihal, tanggal baku, isi, dan blok tanda tangan pengesahan.',
+    },
+    {
+      id: 'word_bast',
+      label: '🤝 Berita Acara (BAST)',
+      prompt: 'Buatkan Berita Acara Serah Terima (BAST) pekerjaan/barang lengkap dengan identitas Pihak Pertama dan Pihak Kedua, tabel rincian serah terima, dan tanda tangan kedua pihak.',
+    },
+    {
+      id: 'word_nota_dinas',
+      label: '📋 Nota Dinas / Memo',
+      prompt: 'Buatkan Nota Dinas / Memo Internal resmi antar divisi lengkap dengan nomor nota, pengirim, penerima, dan pokok arahan pekerjaan.',
+    },
+    {
       id: 'word_mom',
       label: '📝 Notulen Rapat (MoM)',
       prompt: 'Buatkan dokumen terstruktur Notulen Rapat (Minutes of Meeting) lengkap dengan agenda, pembahasan, dan action items.',

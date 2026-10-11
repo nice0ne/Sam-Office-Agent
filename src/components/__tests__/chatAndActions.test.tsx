@@ -784,6 +784,14 @@ describe('InputBar Component', () => {
     render(<QuickActionPresets host="Word" onSelectPreset={vi.fn()} />);
     expect(screen.getByText(/Analisis Berkas Referensi/i)).toBeInTheDocument();
   });
+
+  it('renders administrative naskah dinas presets for Word host', () => {
+    const onSelectPreset = vi.fn();
+    render(<QuickActionPresets host="Word" onSelectPreset={onSelectPreset} />);
+    expect(screen.getByText(/Surat Dinas Resmi/i)).toBeInTheDocument();
+    expect(screen.getByText(/Berita Acara \(BAST\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nota Dinas \/ Memo/i)).toBeInTheDocument();
+  });
 });
 
 describe('ChatContainer Component', () => {
@@ -1001,7 +1009,7 @@ describe('QuickActionPresets Component', () => {
     const vdom = harness.render();
 
     const buttons = findAllElements(vdom, el => el.type === 'button');
-    expect(buttons.length).toBe(10);
+    expect(buttons.length).toBe(13);
 
     const momButton = buttons.find(b => typeof b.props.children === 'string' && b.props.children.includes('Notulen Rapat (MoM)'));
     expect(momButton).toBeDefined();
@@ -1011,6 +1019,8 @@ describe('QuickActionPresets Component', () => {
     );
 
     const html = renderToString(<QuickActionPresets host="Word" onSelectPreset={onSelectPreset} />);
+    expect(html).toContain('Surat Dinas Resmi');
+    expect(html).toContain('Berita Acara (BAST)');
     expect(html).toContain('Notulen Rapat (MoM)');
     expect(html).toContain('Buat SOP');
     expect(html).toContain('Poles Bahasa &amp; EYD');
