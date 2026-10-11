@@ -5,9 +5,12 @@ import {
   DataStoryOptions,
   DataStoryResult,
   IDocumentDriver,
+  ReconcileOptions,
+  ReconcileSummary,
   SheetAuditResult,
 } from './types';
 import { buildDataStoryFromResult, performSheetAudit } from './mockDriver';
+import { reconcileDataSets, buildReconciliationSheetGrid } from './dataReconciler';
 
 declare const Excel: any;
 
@@ -354,6 +357,111 @@ export class ExcelDriver implements Partial<IDocumentDriver> {
       }
 
       return buildDataStoryFromResult(range.values, options);
+    });
+  }
+
+  async reconcileData(options?: ReconcileOptions): Promise<ReconcileSummary> {
+    return await Excel.run(async (context: any) => {
+      const sheets = context.workbook.worksheets;
+      sheets.load('items/name');
+      const activeSheet = sheets.getActiveWorksheet();
+      await context.sync();
+
+      // Read Range A
+      let rangeObjA: any;
+      if (options?.rangeA) {
+        if (options.rangeA.includes('!')) {
+          const [sName, addr] = options.rangeA.split('!');
+          const s = sheets.getItem(sName);
+          rangeObjA = s.getRange(addr);
+        } else {
+          rangeObjA = activeSheet.getRange(options.rangeA);
+        }
+      } else {
+        rangeObjA = typeof activeSheet.getUsedRangeOrNullObject === 'function'
+          ? activeSheet.getUsedRangeOrNullObject(true)
+          : activeSheet.getUsedRange(true);
+      }
+      rangeObjA.load(['values']);
+
+      // Read Range B
+      let rangeObjB: any;
+      if (options?.rangeB) {
+        if (options.rangeB.includes('!')) {
+          const [sName, addr] = options.rangeB.split('!');
+          const s = sheets.getItem(sName);
+          rangeObjB = s.getRange(addr);
+        } else {
+          rangeObjB = activeSheet.getRange(options.rangeB);
+        }
+        rangeObjB.load(['values']);
+      }
+
+      await context.sync();
+
+      const tableA = rangeObjA.values || [];
+      const tableB = rangeObjB ? (rangeObjB.values || []) : tableA;
+
+      const summary = reconcileDataSets(tableA, tableB, options);
+      const { summaryRows, detailRows } = buildReconciliationSheetGrid(summary);
+
+      // Create new sheet for results
+      const targetSheetName = options?.outputSheetName || 'Hasil_Rekonsiliasi';
+      const existingNames = new Set(sheets.items.map((s: any) => s.name));
+      let counter = 1;
+      let finalSheetName = targetSheetName;
+      while (existingNames.has(finalSheetName)) {
+        counter++;
+        finalSheetName = `${targetSheetName}_${counter}`;
+      }
+
+      const resultSheet = sheets.add(finalSheetName);
+      resultSheet.activate();
+
+      // Write Summary Block (starting at A1)
+      if (summaryRows.length > 0) {
+        const sumMaxCols = Math.max(...summaryRows.map(r => r.length));
+        const normalizedSummary = summaryRows.map(r => {
+          const copy = [...r];
+          while (copy.length < sumMaxCols) copy.push('');
+          return copy;
+        });
+        const summaryRange = resultSheet.getRangeByIndexes(0, 0, normalizedSummary.length, sumMaxCols);
+        summaryRange.values = normalizedSummary;
+
+        // Header styling
+        const titleRange = resultSheet.getRange('A1:D1');
+        titleRange.format.font.bold = true;
+        titleRange.format.font.size = 14;
+        titleRange.format.font.color = '#1E3A8A';
+      }
+
+      // Write Detail Block
+      if (detailRows.length > 0) {
+        const startRow = summaryRows.length + 2;
+        const detMaxCols = Math.max(...detailRows.map(r => r.length));
+        const normalizedDetail = detailRows.map(r => {
+          const copy = [...r];
+          while (copy.length < detMaxCols) copy.push('');
+          return copy;
+        });
+        const detailRange = resultSheet.getRangeByIndexes(startRow, 0, normalizedDetail.length, detMaxCols);
+        detailRange.values = normalizedDetail;
+
+        // Detail header style
+        const detailHeader = resultSheet.getRangeByIndexes(startRow, 0, 1, detMaxCols);
+        detailHeader.format.font.bold = true;
+        detailHeader.format.fill.color = '#F1F5F9';
+      }
+
+      // Auto-fit columns
+      if (typeof resultSheet.getUsedRange === 'function') {
+        const used = resultSheet.getUsedRange();
+        used.format.autofitColumns();
+      }
+
+      await context.sync();
+      return summary;
     });
   }
 }

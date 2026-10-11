@@ -216,6 +216,31 @@ Target: SLA berkurang dari 5 hari menjadi 1 hari.`;
     expect(driver.wordContent).toContain('# SURAT DINAS - PT INOVASI NUSANTARA');
     expect(driver.wordContent.some(c => c.includes('borderless') || c.includes('Penandatangan'))).toBe(true);
   });
+
+  it('reconciles two data ranges and writes result to mock driver', async () => {
+    const driver = new MockOfficeDriver();
+    driver.excelGrid['A1:C3'] = [
+      ['No. Ref', 'Item', 'Nominal'],
+      ['TRX-01', 'Server', '1000000'],
+      ['TRX-02', 'Domain', '500000'],
+    ];
+    driver.excelGrid['E1:G3'] = [
+      ['ID Ref', 'Item', 'Total Bayar'],
+      ['TRX-01', 'Server AWS', '1000000'],
+      ['TRX-02', 'Domain Cloud', '450000'],
+    ];
+
+    const result = await driver.reconcileData!({
+      rangeA: 'A1:C3',
+      rangeB: 'E1:G3',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.matchedCount).toBe(1);
+    expect(result.discrepancyCount).toBe(1);
+    expect(result.discrepancies[0].diff).toBe(50000);
+    expect(driver.worksheets.includes('Hasil_Rekonsiliasi')).toBe(true);
+  });
 });
 
 describe('getOfficeDriver', () => {

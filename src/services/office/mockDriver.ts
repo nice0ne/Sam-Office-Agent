@@ -16,6 +16,8 @@ import {
   IDocumentDriver,
   InsertFlowchartOptions,
   PolishTextOptions,
+  ReconcileOptions,
+  ReconcileSummary,
   SheetAuditResult,
   StructuredDocOptions,
   ThemedDeckOptions,
@@ -23,6 +25,7 @@ import {
 import { analyzeContractCompliance } from './complianceReviewer';
 import { synthesizeDocToDeck } from './docToDeckTransformer';
 import { synthesizeFlowchartFromText, renderFlowchartToPngBase64 } from '../../utils/diagramRenderer';
+import { reconcileDataSets, buildReconciliationSheetGrid } from './dataReconciler';
 
 export class MockOfficeDriver implements IDocumentDriver {
   hostType = 'BrowserDev';
@@ -30,6 +33,7 @@ export class MockOfficeDriver implements IDocumentDriver {
   mockWordBody?: string;
   private excelGrid: Record<string, any[][]> = {};
   private wordContent: string[] = [];
+  worksheets: string[] = ['Sheet1'];
   slides: Array<{ title: string; bullets: string[]; notes: string; layout?: string }> = [];
   diagrams: DiagramResult[] = [];
 
@@ -96,6 +100,9 @@ export class MockOfficeDriver implements IDocumentDriver {
   }
 
   async addWorksheet(sheetName: string) {
+    if (!this.worksheets.includes(sheetName)) {
+      this.worksheets.push(sheetName);
+    }
     return { sheetName };
   }
 
@@ -240,6 +247,36 @@ export class MockOfficeDriver implements IDocumentDriver {
     }
 
     return buildDataStoryFromResult(values, options);
+  }
+
+  async reconcileData(options?: ReconcileOptions): Promise<ReconcileSummary> {
+    const sheetName = options?.outputSheetName || 'Hasil_Rekonsiliasi';
+    if (!this.worksheets.includes(sheetName)) {
+      this.worksheets.push(sheetName);
+    }
+
+    let tableA: any[][] = [];
+    let tableB: any[][] = [];
+
+    if (options?.rangeA && this.excelGrid[options.rangeA]) {
+      tableA = this.excelGrid[options.rangeA];
+    } else {
+      tableA = (await this.readActiveRange()).values;
+    }
+
+    if (options?.rangeB && this.excelGrid[options.rangeB]) {
+      tableB = this.excelGrid[options.rangeB];
+    } else {
+      tableB = tableA;
+    }
+
+    const summary = reconcileDataSets(tableA, tableB, options);
+    const { summaryRows, detailRows } = buildReconciliationSheetGrid(summary);
+
+    this.excelGrid[`${sheetName}!A1:D${summaryRows.length}`] = summaryRows;
+    this.excelGrid[`${sheetName}!A${summaryRows.length + 2}:G${summaryRows.length + 2 + detailRows.length}`] = detailRows;
+
+    return summary;
   }
 
   async getWordOutline() {
